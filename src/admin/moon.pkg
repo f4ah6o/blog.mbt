@@ -1,0 +1,6 @@
+import {
+  "mizchi/cloudflare" as @cloudflare,
+  "mizchi/js/core" as @core,
+  "mizchi/js/web/http" as @http,
+  "moonbitlang/core/strconv" as @strconv,
+}
