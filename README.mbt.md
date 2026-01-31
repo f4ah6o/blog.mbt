@@ -7,6 +7,7 @@ MoonBit + Cloudflare Workers + D1 のシンプルなブログです。
 ```bash
 just build
 just init-db
+just seed-db
 just dev
 ```
 
@@ -25,9 +26,19 @@ npx wrangler d1 execute blog-db --local --command \
            '2026-01-31T00:00:00Z', '2026-01-31T00:00:00Z');"
 ```
 
-### 2) `schema.sql` に seed を追加して再初期化
+### 2) seed.sql を流す
 
-`schema.sql` の末尾に INSERT を追加し、再度 `just init-db` を実行します。
+```bash
+just seed-db
+```
+
+## 本番デプロイ時の DB
+
+本番では **schema.sql のみ** を適用し、seed は流さないでください。
+
+```bash
+npx wrangler d1 execute blog-db --file=schema.sql
+```
 
 ## D1 利用時の制約（重要）
 
@@ -48,3 +59,10 @@ MoonBit の async API を使うと `$panic` になることがあります
 ```html
 <script src="/mhx.js" defer></script>
 ```
+
+## サイト設定
+
+ブログのタイトルやフッター文言は `config/blog.toml` で管理します。
+変更後は `just gen-config` または `just build` を実行してください。
+
+注意: 現在の TOML パーサはフラットな `key = "value"` のみ対応しています。

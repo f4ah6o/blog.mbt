@@ -10,6 +10,10 @@ default: check test
 fmt:
     moon fmt
 
+# Generate config bindings from TOML
+gen-config:
+    node scripts/gen_config.mjs
+
 # Type check
 check:
     moon check --deny-warn --target {{target}}
@@ -34,20 +38,36 @@ clean:
 release-check: fmt info check test
 
 # Build for Cloudflare Workers
-build:
+build: gen-config
     moon build --target {{target}}
 
 # Initialize local D1 database
 init-db:
     npx wrangler d1 execute blog-db --local --file=schema.sql
 
+# Migrate local D1 database to admin v0.2 schema
+migrate-db:
+    npx wrangler d1 execute blog-db --local --file=migrate_admin_v02.sql
+
+# Seed local D1 database
+seed-db:
+    npx wrangler d1 execute blog-db --local --file=seed.sql
+
 # Run local development server
 dev: build
     npx wrangler dev fixtures/worker.js
 
 # Full sequence for local development
-local: build init-db dev
+local: build init-db seed-db dev
 
 # Deploy to Cloudflare
 deploy: build
     npx wrangler deploy fixtures/worker.js
+
+# Initialize remote D1 database (production)
+deploy-db:
+    npx wrangler d1 execute blog-db --remote --file=schema.sql
+
+# Migrate remote D1 database to admin v0.2 schema
+deploy-migrate-db:
+    npx wrangler d1 execute blog-db --remote --file=migrate_admin_v02.sql
