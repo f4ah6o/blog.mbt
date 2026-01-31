@@ -15,7 +15,7 @@ pub fn layout(title : String, content : @tmpx.Node) -> String {
       @tmpx.nav([@tmpx.class_("navbar")], [
         @tmpx.div([@tmpx.class_("container")], [
           @tmpx.a([@tmpx.href("/"), @tmpx.class_("logo")], [
-            @tmpx.text("MoonBit Blog"),
+            @tmpx.text(@config.SITE_TITLE),
           ]),
           @tmpx.ul([@tmpx.class_("nav-links")], [
             @tmpx.li([], [
@@ -29,9 +29,7 @@ pub fn layout(title : String, content : @tmpx.Node) -> String {
       ]),
       @tmpx.footer([@tmpx.class_("footer")], [
         @tmpx.div([@tmpx.class_("container")], [
-          @tmpx.p([], [
-            @tmpx.text("Built with MoonBit, TMPX, MHX, and Cloudflare Workers"),
-          ]),
+          @tmpx.p([], [@tmpx.text(@config.FOOTER_TEXT)]),
         ]),
       ]),
       @tmpx.script([@tmpx.src("/mhx.js"), @tmpx.bool_attr("defer")], []),

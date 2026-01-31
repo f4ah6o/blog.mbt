@@ -7,4 +7,4 @@ target
 .jj/
 node_modules/
 .wrangler/
-config/
+/config/
