@@ -1,0 +1,16 @@
+name = "blog"
+main = "fixtures/worker.js"
+compatibility_date = "2024-12-01"
+
+[assets]
+directory = "./static"
+
+[[d1_databases]]
+binding = "BLOG_DB"
+database_name = "blog-db"
+database_id = "YOUR_PRODUCTION_DATABASE_ID"
+
+[env.local]
+d1_databases = [
+  { binding = "BLOG_DB", database_name = "blog-db", database_id = "local-blog-db" }
+]
