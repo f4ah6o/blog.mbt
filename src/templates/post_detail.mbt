@@ -10,7 +10,7 @@ pub fn post_detail_content(post : @models.BlogPost) -> @tmpx.Node {
       ]),
     ]),
     @tmpx.div([@tmpx.class_("post-content")], [
-      @tmpx.p([], [@tmpx.text(post.content)]),
+      @markdown.render_markdown(post.content),
     ]),
     @tmpx.footer([@tmpx.class_("post-footer")], [
       @tmpx.a([@tmpx.href("/posts"), @tmpx.class_("btn")], [

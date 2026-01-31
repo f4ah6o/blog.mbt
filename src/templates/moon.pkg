@@ -1,4 +1,6 @@
 import {
+  "f4ah6o/blog.mbt/config",
+  "f4ah6o/blog.mbt/lib" as @markdown,
   "f4ah6o/blog.mbt/models",
   "f4ah6o/tmpx/tmpx",
 }
