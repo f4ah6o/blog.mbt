@@ -82,7 +82,7 @@ extern "js" fn get_search_param(url : @core.Any, name : String) -> String? =
 ///|
 extern "js" fn db_count_posts(db : @core.Any) -> @core.Promise[Int] =
   #| async (db) => {
-  #|   const result = await db.prepare("SELECT COUNT(*) as count FROM posts").first("count");
+  #|   const result = await db.prepare("SELECT COUNT(*) as count FROM posts WHERE status = 'published'").first("count");
   #|   return result || 0;
   #| }
 
@@ -93,7 +93,7 @@ extern "js" fn db_list_posts(
   offset : Int,
 ) -> @core.Promise[@core.Any] =
   #| async (db, limit, offset) => {
-  #|   const result = await db.prepare("SELECT * FROM posts ORDER BY published_at DESC LIMIT ? OFFSET ?").bind(limit, offset).all();
+  #|   const result = await db.prepare("SELECT * FROM posts WHERE status = 'published' ORDER BY published_at DESC LIMIT ? OFFSET ?").bind(limit, offset).all();
   #|   return result.results || [];
   #| }
 
@@ -103,111 +103,100 @@ extern "js" fn db_get_post_by_slug(
   slug : String,
 ) -> @core.Promise[@core.Any] =
   #| async (db, slug) => {
-  #|   return await db.prepare("SELECT * FROM posts WHERE slug = ?").bind(slug).first();
+  #|   return await db.prepare("SELECT * FROM posts WHERE slug = ? AND status = 'published'").bind(slug).first();
   #| }
 
 ///|
-extern "js" fn promise_resolve(
-  value : @http.Response,
-) -> @core.Promise[@http.Response] =
-  #| (value) => Promise.resolve(value)
-
-///|
 pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
-  fn(
+  @core.identity(async fn(
     req : @cloudflare.CloudflareRequest,
     env : @cloudflare.CloudflareEnv,
     _ctx : @cloudflare.CloudflareContext,
-  ) -> @core.Promise[@http.Response] {
-    let url = parse_url(req.url)
-    let pathname = get_pathname(url)
-    let db = get_db_from_env(env)
+  ) -> @http.Response {
+    match @admin.handle_admin_request(req, env, _ctx) {
+      Some(res) => res
+      None => {
+        let url = parse_url(req.url)
+        let pathname = get_pathname(url)
+        let db = get_db_from_env(env)
 
-    // Check if database is available
-    if @core.typeof_(db) == "undefined" {
-      return promise_resolve(
-        html_response_js(
-          "<!DOCTYPE html><html><body><h1>500 Error</h1><p>Database not configured</p></body></html>",
-          500,
-        ),
-      )
-    }
+        // Check if database is available
+        if @core.typeof_(db) == "undefined" {
+          return html_response_js(
+            "<!DOCTYPE html><html><body><h1>500 Error</h1><p>Database not configured</p></body></html>",
+            500,
+          )
+        }
 
-    // Route: /api/posts (partial HTML for MHX)
-    if pathname == "/api/posts" {
-      let page = parse_page(get_search_param(url, "page"))
-      let limit = parse_limit(get_search_param(url, "limit"))
-      let offset = (page - 1) * limit
-      return db_count_posts(db).then(fn(total) {
-        let total_pages = if total == 0 { 1 } else { ceil_div(total, limit) }
-        db_list_posts(db, limit, offset).then(fn(rows) {
+        // Route: /api/posts (partial HTML for MHX)
+        if pathname == "/api/posts" {
+          let page = parse_page(get_search_param(url, "page"))
+          let limit = parse_limit(get_search_param(url, "limit"))
+          let offset = (page - 1) * limit
+          let total = db_count_posts(db).wait()
+          let total_pages = if total == 0 { 1 } else { ceil_div(total, limit) }
+          let rows_any = db_list_posts(db, limit, offset).wait()
           let posts : Array[@models.BlogPost] = []
-          let rows_arr : Array[@core.Any] = rows.cast()
+          let rows_arr : Array[@core.Any] = rows_any.cast()
           for row in rows_arr {
             posts.push(row_to_post(row))
           }
           let html = @templates.render_post_list(
             posts, page, total_pages, limit,
           )
-          promise_resolve(html_response_js(html, 200))
-        })
-      })
-    }
+          return html_response_js(html, 200)
+        }
 
-    // Route: /posts/:slug (post detail)
-    match extract_slug(pathname) {
-      Some(slug) =>
-        return db_get_post_by_slug(db, slug).then(fn(row) {
-          if @core.is_null(row) {
-            promise_resolve(
-              html_response_js(
+        // Route: /posts/:slug (post detail)
+        match extract_slug(pathname) {
+          Some(slug) => {
+            let row = db_get_post_by_slug(db, slug).wait()
+            if @core.is_null(row) {
+              return html_response_js(
                 @templates.error_layout(
                   "404 Not Found", "The requested post was not found.",
                 ),
                 404,
-              ),
-            )
-          } else {
-            let post = row_to_post(row)
-            let content = @templates.post_detail_content(post)
-            let html = @templates.layout(
-              post.title + " - MoonBit Blog",
-              content,
-            )
-            promise_resolve(html_response_js(html, 200))
+              )
+            } else {
+              let post = row_to_post(row)
+              let content = @templates.post_detail_content(post)
+              let html = @templates.layout(
+                post.title + " - " + @config.SITE_TITLE,
+                content,
+              )
+              return html_response_js(html, 200)
+            }
           }
-        })
-      None => ()
-    }
+          None => ()
+        }
 
-    // Route: / or /posts (post list page)
-    if pathname == "/" || pathname == "/posts" {
-      let page = parse_page(get_search_param(url, "page"))
-      let limit = parse_limit(get_search_param(url, "limit"))
-      let offset = (page - 1) * limit
-      return db_count_posts(db).then(fn(total) {
-        let total_pages = if total == 0 { 1 } else { ceil_div(total, limit) }
-        db_list_posts(db, limit, offset).then(fn(rows) {
+        // Route: / or /posts (post list page)
+        if pathname == "/" || pathname == "/posts" {
+          let page = parse_page(get_search_param(url, "page"))
+          let limit = parse_limit(get_search_param(url, "limit"))
+          let offset = (page - 1) * limit
+          let total = db_count_posts(db).wait()
+          let total_pages = if total == 0 { 1 } else { ceil_div(total, limit) }
+          let rows_any = db_list_posts(db, limit, offset).wait()
           let posts : Array[@models.BlogPost] = []
-          let rows_arr : Array[@core.Any] = rows.cast()
+          let rows_arr : Array[@core.Any] = rows_any.cast()
           for row in rows_arr {
             posts.push(row_to_post(row))
           }
           let content = @templates.post_list_content(
             posts, page, total_pages, limit,
           )
-          let html = @templates.layout("Posts - MoonBit Blog", content)
-          promise_resolve(html_response_js(html, 200))
-        })
-      })
-    }
+          let html = @templates.layout("Posts - " + @config.SITE_TITLE, content)
+          return html_response_js(html, 200)
+        }
 
-    // 404 for unknown routes
-    promise_resolve(
-      html_response_js(
-        "<!DOCTYPE html><html><body><h1>404 Not Found</h1><p>The requested page was not found.</p></body></html>",
-        404,
-      ),
-    )
-  }
+        // 404 for unknown routes
+        html_response_js(
+          "<!DOCTYPE html><html><body><h1>404 Not Found</h1><p>The requested page was not found.</p></body></html>",
+          404,
+        )
+      }
+    }
+  })
 }

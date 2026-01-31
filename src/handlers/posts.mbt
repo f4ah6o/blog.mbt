@@ -71,7 +71,7 @@ pub async fn handle_posts_page(
 
   // Count total posts
   let count_val = db
-    .prepare("SELECT COUNT(*) as count FROM posts")
+    .prepare("SELECT COUNT(*) as count FROM posts WHERE status = 'published'")
     .first_col("count") catch {
       _ =>
         return @http.Response::html(
@@ -87,7 +87,9 @@ pub async fn handle_posts_page(
 
   // List posts
   let result = db
-    .prepare("SELECT * FROM posts ORDER BY published_at DESC LIMIT ? OFFSET ?")
+    .prepare(
+      "SELECT * FROM posts WHERE status = 'published' ORDER BY published_at DESC LIMIT ? OFFSET ?",
+    )
     .bind2(@core.any(limit), @core.any(offset))
     .all() catch {
       _ =>
@@ -118,7 +120,7 @@ pub async fn handle_posts_partial(
 
   // Count total posts
   let count_val = db
-    .prepare("SELECT COUNT(*) as count FROM posts")
+    .prepare("SELECT COUNT(*) as count FROM posts WHERE status = 'published'")
     .first_col("count") catch {
       _ =>
         return html_response(
@@ -133,7 +135,9 @@ pub async fn handle_posts_partial(
 
   // List posts
   let result = db
-    .prepare("SELECT * FROM posts ORDER BY published_at DESC LIMIT ? OFFSET ?")
+    .prepare(
+      "SELECT * FROM posts WHERE status = 'published' ORDER BY published_at DESC LIMIT ? OFFSET ?",
+    )
     .bind2(@core.any(limit), @core.any(offset))
     .all() catch {
       _ =>
@@ -156,7 +160,7 @@ pub async fn handle_post_detail(
   db : @cloudflare.D1Database,
 ) -> @http.Response {
   let row = db
-    .prepare("SELECT * FROM posts WHERE slug = ?")
+    .prepare("SELECT * FROM posts WHERE slug = ? AND status = 'published'")
     .bind1(@core.any(slug))
     .first() catch {
       _ =>

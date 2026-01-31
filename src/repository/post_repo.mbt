@@ -24,7 +24,7 @@ pub async fn list_posts(
   offset : Int,
 ) -> Array[@models.BlogPost] raise @cloudflare.D1Error {
   let stmt = db.prepare(
-    "SELECT * FROM posts ORDER BY published_at DESC LIMIT ? OFFSET ?",
+    "SELECT * FROM posts WHERE status = 'published' ORDER BY published_at DESC LIMIT ? OFFSET ?",
   )
   let bound = stmt.bind2(@core.any(limit), @core.any(offset))
   let result = bound.all()
@@ -41,7 +41,9 @@ pub async fn get_by_slug(
   db : @cloudflare.D1Database,
   slug : String,
 ) -> @models.BlogPost? raise @cloudflare.D1Error {
-  let stmt = db.prepare("SELECT * FROM posts WHERE slug = ?")
+  let stmt = db.prepare(
+    "SELECT * FROM posts WHERE slug = ? AND status = 'published'",
+  )
   let bound = stmt.bind1(@core.any(slug))
   let row = bound.first()
   match row {
@@ -54,7 +56,9 @@ pub async fn get_by_slug(
 pub async fn count(
   db : @cloudflare.D1Database,
 ) -> Int raise @cloudflare.D1Error {
-  let stmt = db.prepare("SELECT COUNT(*) as count FROM posts")
+  let stmt = db.prepare(
+    "SELECT COUNT(*) as count FROM posts WHERE status = 'published'",
+  )
   let result = stmt.first_col("count")
   match result {
     Some(c) => @cloudflare.js_number_to_int(c)
