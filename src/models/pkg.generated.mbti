@@ -1,0 +1,25 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "f4ah6o/blog.mbt/models"
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct BlogPost {
+  id : Int
+  title : String
+  slug : String
+  excerpt : String
+  content : String
+  published_at : String
+  updated_at : String
+}
+pub fn BlogPost::new(Int, String, String, String, String, String, String) -> Self
+pub impl Eq for BlogPost
+pub impl Show for BlogPost
+
+// Type aliases
+
+// Traits
+

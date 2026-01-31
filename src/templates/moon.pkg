@@ -1,0 +1,8 @@
+import {
+  "f4ah6o/blog.mbt/models",
+  "f4ah6o/tmpx/tmpx",
+}
+
+options(
+  "supported-targets": [ "js" ],
+)

@@ -1,0 +1,24 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "f4ah6o/blog.mbt/handlers"
+
+import {
+  "mizchi/cloudflare",
+  "mizchi/js/web/http",
+  "mizchi/js/web/url",
+}
+
+// Values
+pub async fn handle_post_detail(String, @cloudflare.D1Database) -> @http.Response
+
+pub async fn handle_posts_page(@url.URL, @cloudflare.D1Database) -> @http.Response
+
+pub async fn handle_posts_partial(@url.URL, @cloudflare.D1Database) -> @http.Response
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits
+

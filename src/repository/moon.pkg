@@ -1,0 +1,9 @@
+import {
+  "f4ah6o/blog.mbt/models",
+  "mizchi/cloudflare",
+  "mizchi/js/core",
+}
+
+options(
+  "supported-targets": [ "js" ],
+)

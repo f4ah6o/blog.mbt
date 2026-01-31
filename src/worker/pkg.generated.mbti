@@ -1,0 +1,24 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "f4ah6o/blog.mbt/worker"
+
+import {
+  "mizchi/cloudflare",
+  "mizchi/js/core",
+  "mizchi/js/web/http",
+}
+
+// Values
+pub fn extract_slug(String) -> String?
+
+pub fn get_d1(@cloudflare.CloudflareEnv) -> @cloudflare.D1Database?
+
+pub fn get_fetch_handler() -> (@cloudflare.CloudflareRequest, @cloudflare.CloudflareEnv, @cloudflare.CloudflareContext) -> @core.Promise[@http.Response]
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits
+

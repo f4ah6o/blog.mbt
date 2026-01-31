@@ -1,0 +1,18 @@
+{
+  "name": "f4ah6o/blog.mbt",
+  "version": "0.1.0",
+  "deps": {
+    "moonbitlang/async": "0.16.4",
+    "mizchi/cloudflare": "0.1.6",
+    "mizchi/js": "0.10.11",
+    "f4ah6o/tmpx": "0.3.0",
+    "f4ah6o/mhx-spec": "0.1.0"
+  },
+  "readme": "README.mbt.md",
+  "repository": "",
+  "license": "Apache-2.0",
+  "keywords": [],
+  "description": "",
+  "source": "src",
+  "preferred-target": "js"
+}

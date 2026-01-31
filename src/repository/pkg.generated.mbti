@@ -1,0 +1,23 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "f4ah6o/blog.mbt/repository"
+
+import {
+  "f4ah6o/blog.mbt/models",
+  "mizchi/cloudflare",
+}
+
+// Values
+pub async fn count(@cloudflare.D1Database) -> Int raise @cloudflare.D1Error
+
+pub async fn get_by_slug(@cloudflare.D1Database, String) -> @models.BlogPost? raise @cloudflare.D1Error
+
+pub async fn list_posts(@cloudflare.D1Database, Int, Int) -> Array[@models.BlogPost] raise @cloudflare.D1Error
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits
+
