@@ -13,3 +13,6 @@ node_modules/
 .dev.vars
 .env
 .env.local
+
+# Cloudflare Workers config (contains sensitive IDs)
+wrangler.toml
