@@ -1,4 +1,7 @@
--- Seed data
+-- Seed data (idempotent - can be run multiple times safely)
+-- Clear existing data first to avoid UNIQUE constraint violations
+DELETE FROM posts;
+
 INSERT INTO posts (title, slug, excerpt, content, status, published_at, updated_at)
 VALUES
   ('Hello World', 'hello-world', 'Welcome to the blog',

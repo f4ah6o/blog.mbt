@@ -1,0 +1,18 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "f4ah6o/blog.mbt/lib"
+
+import {
+  "f4ah6o/tmpx/tmpx",
+}
+
+// Values
+pub fn render_markdown(String) -> @tmpx.Node
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits
+

@@ -7,9 +7,11 @@ import {
 }
 
 // Values
-pub fn error_layout(String, String) -> String
+pub fn error_layout(String, String) -> String raise
 
-pub fn layout(String, @tmpx.Node) -> String
+pub fn layout(String, @tmpx.Node) -> String raise
+
+pub fn layout_with_meta(String, @tmpx.Node, PageMeta) -> String raise
 
 pub fn post_detail_content(@models.BlogPost) -> @tmpx.Node
 
@@ -20,6 +22,14 @@ pub fn render_post_list(Array[@models.BlogPost], Int, Int, Int) -> String
 // Errors
 
 // Types and methods
+pub(all) struct PageMeta {
+  title : String
+  description : String
+  url : String
+  og_type : String
+  image_url : String?
+  twitter_card : String?
+}
 
 // Type aliases
 

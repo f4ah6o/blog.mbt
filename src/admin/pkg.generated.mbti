@@ -1,0 +1,63 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "f4ah6o/blog.mbt/admin"
+
+import {
+  "mizchi/cloudflare",
+  "mizchi/js/core",
+  "mizchi/js/web/http",
+}
+
+// Values
+pub async fn count_posts(@core.Any) -> Int
+
+pub async fn delete_post(@core.Any, Int) -> Unit
+
+pub fn get_d1(@cloudflare.CloudflareEnv) -> @core.Any?
+
+pub async fn get_post_by_id(@core.Any, Int) -> AdminPost?
+
+pub async fn handle_admin_request(@cloudflare.CloudflareRequest, @cloudflare.CloudflareEnv, @cloudflare.CloudflareContext) -> @http.Response?
+
+pub async fn insert_post(@core.Any, String, String, String, String, String) -> Int
+
+pub async fn list_posts(@core.Any, Int, Int) -> Array[AdminPost]
+
+pub fn parse_urlencoded(String) -> Map[String, String]
+
+pub fn post_status_from_string(String) -> PostStatus
+
+pub fn post_status_label(PostStatus) -> String
+
+pub fn post_status_to_string(PostStatus) -> String
+
+pub async fn set_status(@core.Any, Int, PostStatus, String?, String) -> Unit
+
+pub async fn update_post(@core.Any, Int, String, String, String, String, String) -> Unit
+
+// Errors
+
+// Types and methods
+pub struct AdminPost {
+  id : Int
+  title : String
+  slug : String
+  excerpt : String
+  content : String
+  status : PostStatus
+  published_at : String?
+  updated_at : String
+}
+pub fn AdminPost::new(Int, String, String, String, String, PostStatus, String?, String) -> Self
+pub impl Show for AdminPost
+
+pub enum PostStatus {
+  Draft
+  Published
+}
+pub impl Eq for PostStatus
+pub impl Show for PostStatus
+
+// Type aliases
+
+// Traits
+

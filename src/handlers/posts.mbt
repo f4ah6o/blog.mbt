@@ -104,7 +104,15 @@ pub async fn handle_posts_page(
     posts.push(row_to_post(row))
   }
   let content = @templates.post_list_content(posts, page, total_pages, limit)
-  let html = @templates.layout("Posts - MoonBit Blog", content)
+  let meta = @templates.PageMeta::{
+    title: "Posts - " + @config.SITE_NAME,
+    description: @config.SITE_DESCRIPTION,
+    url: "/posts",
+    og_type: "website",
+    image_url: None,
+    twitter_card: None,
+  }
+  let html = @templates.layout_with_meta("Posts - MoonBit Blog", content, meta)
   @http.Response::html(html, 200)
 }
 
@@ -173,7 +181,24 @@ pub async fn handle_post_detail(
     Some(r) => {
       let post = row_to_post(r)
       let content = @templates.post_detail_content(post)
-      let html = @templates.layout(post.title + " - MoonBit Blog", content)
+      let description = if post.excerpt.is_empty() {
+        @config.SITE_DESCRIPTION
+      } else {
+        post.excerpt
+      }
+      let meta = @templates.PageMeta::{
+        title: post.title,
+        description,
+        url: "/posts/" + post.slug,
+        og_type: "article",
+        image_url: None,
+        twitter_card: None,
+      }
+      let html = @templates.layout_with_meta(
+        post.title + " - MoonBit Blog",
+        content,
+        meta,
+      )
       @http.Response::html(html, 200)
     }
     None =>
