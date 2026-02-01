@@ -6,7 +6,8 @@
     "mizchi/cloudflare": "0.1.6",
     "mizchi/js": "0.10.11",
     "f4ah6o/tmpx": "0.3.0",
-    "f4ah6o/mhx-spec": "0.1.0"
+    "f4ah6o/mhx-spec": "0.1.0",
+    "f4ah6o/simple-webauthn": "0.1.0"
   },
   "readme": "README.mbt.md",
   "repository": "",

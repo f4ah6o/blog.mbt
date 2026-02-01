@@ -60,8 +60,17 @@ dev: build
 # Full sequence for local development
 local: build init-db seed-db dev
 
-# Deploy to Cloudflare
+item_title := "blog"
+
+# Deploy to Cloudflare (production via 1Password)
 deploy: build
+    opz run {{item_title}} -- sh -c 'printf "%s" "$ADMIN_USER_ID" | npx wrangler secret put ADMIN_USER_ID --env production'
+    opz run {{item_title}} -- sh -c 'printf "%s" "$JWT_SECRET" | npx wrangler secret put JWT_SECRET --env production'
+    opz run {{item_title}} -- sh -c 'printf "%s" "$ADMIN_SETUP_TOKEN" | npx wrangler secret put ADMIN_SETUP_TOKEN --env production'
+    opz run {{item_title}} -- npx wrangler deploy fixtures/worker.js --env production
+
+# Deploy to Cloudflare without secrets (uses local env)
+deploy-local: build
     npx wrangler deploy fixtures/worker.js
 
 # Initialize remote D1 database (production)

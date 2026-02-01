@@ -62,7 +62,213 @@ async fn read_form(req : @http.Request) -> Map[String, String] {
 }
 
 ///|
-async fn handle_get(db : @core.Any, segments : Array[String]) -> @http.Response {
+/// Read JSON body from request
+async fn read_json_body(req : @http.Request) -> String {
+  req.text()
+}
+
+// =============================================================================
+// Auth Routes (Public - no JWT required)
+// =============================================================================
+
+///|
+/// Handle GET /admin/login
+fn handle_login_page() -> @http.Response {
+  html_response(render_login_page(None), 200)
+}
+
+///|
+/// Handle GET /admin/register
+fn handle_register_page() -> @http.Response {
+  html_response(render_register_page(None), 200)
+}
+
+///|
+/// Handle GET /admin/login/options - Get WebAuthn authentication options
+async fn handle_login_options(
+  kv : @core.Any,
+  env : @cloudflare.CloudflareEnv,
+) -> @http.Response {
+  // Get required config
+  let user_id = match get_admin_user_id(env) {
+    Some(id) => id
+    None =>
+      return json_response("{\"error\":\"ADMIN_USER_ID not configured\"}", 500)
+  }
+  let rp_id = match get_rp_id(env) {
+    Some(id) => id
+    None => return json_response("{\"error\":\"RP_ID not configured\"}", 500)
+  }
+  //
+  // Generate authentication options
+  let options = generate_auth_options(kv, user_id, rp_id)
+  //
+  // Return as JSON
+  let json_str = options.to_json().stringify()
+  json_response(json_str, 200)
+}
+
+///|
+/// Handle POST /admin/login/verify - Verify WebAuthn authentication
+async fn handle_login_verify(
+  kv : @core.Any,
+  env : @cloudflare.CloudflareEnv,
+  req : @http.Request,
+) -> @http.Response {
+  // Get required config
+  let user_id = match get_admin_user_id(env) {
+    Some(id) => id
+    None =>
+      return json_response("{\"error\":\"ADMIN_USER_ID not configured\"}", 500)
+  }
+  let rp_id = match get_rp_id(env) {
+    Some(id) => id
+    None => return json_response("{\"error\":\"RP_ID not configured\"}", 500)
+  }
+  let origin = match get_rp_origin(env) {
+    Some(o) => o
+    None =>
+      return json_response("{\"error\":\"RP_ORIGIN not configured\"}", 500)
+  }
+  let jwt_secret = match get_jwt_secret(env) {
+    Some(s) => s
+    None =>
+      return json_response("{\"error\":\"JWT_SECRET not configured\"}", 500)
+  }
+  let jwt_expires_in = get_jwt_expires_in(env)
+  //
+  // Parse request body
+  let body = read_json_body(req)
+  let json_result = try? @json.parse(body)
+  let json = match json_result {
+    Ok(j) => j
+    Err(_) => return json_response("{\"error\":\"Invalid JSON\"}", 400)
+  }
+  let request_result : Result[AuthVerifyRequest, _] = try? @json.from_json(json)
+  let request = match request_result {
+    Ok(r) => r
+    Err(_) => return json_response("{\"error\":\"Invalid request body\"}", 400)
+  }
+  //
+  // Verify authentication
+  let result = verify_authentication(kv, user_id, rp_id, origin, request)
+  match result {
+    AuthVerifyResult::Success(_counter) => {
+      // Create JWT session token
+      let jwt = create_session_token(user_id, jwt_secret, jwt_expires_in)
+      // Return success with session cookie
+      let secure_cookie = should_use_secure_cookie(env)
+      json_response_with_session_cookie(
+        "{\"success\":true}", 200, jwt, jwt_expires_in, secure_cookie,
+      )
+    }
+    AuthVerifyResult::ChallengeInvalid =>
+      json_response("{\"error\":\"Challenge invalid or expired\"}", 401)
+    AuthVerifyResult::CredentialNotFound =>
+      json_response("{\"error\":\"Credential not found\"}", 401)
+    AuthVerifyResult::VerificationFailed(msg) =>
+      json_response("{\"error\":\"Verification failed: " + msg + "\"}", 401)
+  }
+}
+
+///|
+/// Handle GET /admin/register/options - Get WebAuthn registration options
+async fn handle_register_options(
+  kv : @core.Any,
+  env : @cloudflare.CloudflareEnv,
+) -> @http.Response {
+  // Get required config
+  let user_id = match get_admin_user_id(env) {
+    Some(id) => id
+    None =>
+      return json_response("{\"error\":\"ADMIN_USER_ID not configured\"}", 500)
+  }
+  let rp_id = match get_rp_id(env) {
+    Some(id) => id
+    None => return json_response("{\"error\":\"RP_ID not configured\"}", 500)
+  }
+  let rp_name = match get_rp_name(env) {
+    Some(n) => n
+    None => return json_response("{\"error\":\"RP_NAME not configured\"}", 500)
+  }
+  //
+  // Generate registration options (use user_id as display name too)
+  let options = generate_reg_options(kv, user_id, user_id, rp_id, rp_name)
+  //
+  // Return as JSON
+  let json_str = options.to_json().stringify()
+  json_response(json_str, 200)
+}
+
+///|
+/// Handle POST /admin/register/verify - Verify WebAuthn registration
+async fn handle_register_verify(
+  kv : @core.Any,
+  env : @cloudflare.CloudflareEnv,
+  req : @http.Request,
+) -> @http.Response {
+  // Get required config
+  let user_id = match get_admin_user_id(env) {
+    Some(id) => id
+    None =>
+      return json_response("{\"error\":\"ADMIN_USER_ID not configured\"}", 500)
+  }
+  let rp_id = match get_rp_id(env) {
+    Some(id) => id
+    None => return json_response("{\"error\":\"RP_ID not configured\"}", 500)
+  }
+  let origin = match get_rp_origin(env) {
+    Some(o) => o
+    None =>
+      return json_response("{\"error\":\"RP_ORIGIN not configured\"}", 500)
+  }
+  //
+  // Parse request body
+  let body = read_json_body(req)
+  let json_result = try? @json.parse(body)
+  let json = match json_result {
+    Ok(j) => j
+    Err(_) => return json_response("{\"error\":\"Invalid JSON\"}", 400)
+  }
+  let request_result : Result[RegVerifyRequest, _] = try? @json.from_json(json)
+  let request = match request_result {
+    Ok(r) => r
+    Err(e) =>
+      return json_response(
+        "{\"error\":\"Invalid request body: " + e.to_string() + "\", \"received\": " +
+        body +
+        "}",
+        400,
+      )
+  }
+  //
+  // Verify registration
+  let result = verify_registration(kv, user_id, rp_id, origin, request)
+  match result {
+    RegVerifyResult::Success => json_response("{\"success\":true}", 200)
+    RegVerifyResult::ChallengeInvalid =>
+      json_response("{\"error\":\"Challenge invalid or expired\"}", 401)
+    RegVerifyResult::VerificationFailed(msg) =>
+      json_response("{\"error\":\"Verification failed: " + msg + "\"}", 401)
+  }
+}
+
+///|
+/// Handle POST /admin/logout
+fn handle_logout(env : @cloudflare.CloudflareEnv) -> @http.Response {
+  let secure_cookie = should_use_secure_cookie(env)
+  redirect_with_logout_cookie("/admin/login", secure_cookie)
+}
+
+// =============================================================================
+// Protected Routes (JWT required)
+// =============================================================================
+
+///|
+async fn handle_protected_get(
+  db : @core.Any,
+  segments : Array[String],
+) -> @http.Response {
   if segments.length() == 1 && segments[0] == "admin" {
     let posts = list_posts(db, 200, 0) catch {
       _ =>
@@ -134,7 +340,7 @@ async fn handle_get(db : @core.Any, segments : Array[String]) -> @http.Response 
 }
 
 ///|
-async fn handle_post(
+async fn handle_protected_post(
   db : @core.Any,
   req : @http.Request,
   segments : Array[String],
@@ -274,6 +480,10 @@ async fn handle_post(
   not_found_response()
 }
 
+// =============================================================================
+// Main Request Handler
+// =============================================================================
+
 ///|
 pub async fn handle_admin_request(
   req : @cloudflare.CloudflareRequest,
@@ -282,16 +492,95 @@ pub async fn handle_admin_request(
 ) -> @http.Response? {
   let url = parse_url(req.url)
   let pathname = get_pathname(url)
-  if !pathname.has_prefix("/admin") {
+  if not(pathname.has_prefix("/admin")) {
     return None
   }
   let http_req = as_http_request(req)
-  match require_basic_auth(http_req, env) {
-    Ok(_) => ()
-    Err(res) => return Some(res)
+  let segments = path_segments(pathname)
+  let http_method = http_req.method_().to_upper()
+  //
+  // Route: Auth pages and API (public)
+  // GET /admin/login
+  if http_method == "GET" &&
+    segments.length() == 2 &&
+    segments[0] == "admin" &&
+    segments[1] == "login" {
+    return Some(handle_login_page())
   }
-  let db_opt = get_d1(env)
-  let db = match db_opt {
+  // GET /admin/register (no token required - token entered via form)
+  if http_method == "GET" &&
+    segments.length() == 2 &&
+    segments[0] == "admin" &&
+    segments[1] == "register" {
+    return Some(handle_register_page())
+  }
+  //
+  // Route: Auth API (public, needs KV)
+  let kv = match get_admin_auth_kv(env) {
+    Some(k) => k
+    None =>
+      return Some(
+        json_response("{\"error\":\"ADMIN_AUTH KV not configured\"}", 500),
+      )
+  }
+  // GET /admin/login/options
+  if http_method == "GET" &&
+    segments.length() == 3 &&
+    segments[0] == "admin" &&
+    segments[1] == "login" &&
+    segments[2] == "options" {
+    let res : @http.Response = handle_login_options(kv, env)
+    return Some(res)
+  }
+  // POST /admin/login/verify
+  if http_method == "POST" &&
+    segments.length() == 3 &&
+    segments[0] == "admin" &&
+    segments[1] == "login" &&
+    segments[2] == "verify" {
+    let res : @http.Response = handle_login_verify(kv, env, http_req)
+    return Some(res)
+  }
+  // GET /admin/register/options (requires setup token in header only)
+  if http_method == "GET" &&
+    segments.length() == 3 &&
+    segments[0] == "admin" &&
+    segments[1] == "register" &&
+    segments[2] == "options" {
+    if not(has_valid_setup_token_header(http_req, env)) {
+      return Some(forbidden_json_response())
+    }
+    let res : @http.Response = handle_register_options(kv, env)
+    return Some(res)
+  }
+  // POST /admin/register/verify (requires setup token in header only)
+  if http_method == "POST" &&
+    segments.length() == 3 &&
+    segments[0] == "admin" &&
+    segments[1] == "register" &&
+    segments[2] == "verify" {
+    if not(has_valid_setup_token_header(http_req, env)) {
+      return Some(forbidden_json_response())
+    }
+    let res : @http.Response = handle_register_verify(kv, env, http_req)
+    return Some(res)
+  }
+  // POST /admin/logout
+  if http_method == "POST" &&
+    segments.length() == 2 &&
+    segments[0] == "admin" &&
+    segments[1] == "logout" {
+    return Some(handle_logout(env))
+  }
+  //
+  // Protected routes - require JWT authentication
+  match require_auth(http_req, env, pathname) {
+    Ok(_) => () // Authenticated (or public path, but we handled those above)
+    Err(res) => return Some(res) // Redirect to login or 401
+  }
+  //
+  // Get database for protected routes
+  let db = match get_d1(env) {
     Some(value) => value
     None =>
       return Some(
@@ -301,13 +590,13 @@ pub async fn handle_admin_request(
         ),
       )
   }
-  let segments = path_segments(pathname)
-  let http_method = http_req.method_().to_upper()
+  //
+  // Handle protected routes
   if http_method == "GET" {
-    let res : @http.Response = handle_get(db, segments)
+    let res : @http.Response = handle_protected_get(db, segments)
     Some(res)
   } else if http_method == "POST" {
-    let res : @http.Response = handle_post(db, http_req, segments)
+    let res : @http.Response = handle_protected_post(db, http_req, segments)
     Some(res)
   } else {
     Some(method_not_allowed_response())
