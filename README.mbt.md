@@ -2,6 +2,8 @@
 
 MoonBit + Cloudflare Workers + D1 で構築されたシンプルなブログシステムです。
 
+WebAuthn によるセキュアな管理者認証と、型安全な TMPX テンプレートエンジンを特徴とします。
+
 ## Quick Start
 
 ```bash
@@ -36,7 +38,8 @@ just seed-db      # シードデータを投入
 ### デプロイ
 
 ```bash
-just deploy       # Cloudflare Workers にデプロイ
+just deploy       # Cloudflare Workers にデプロイ（1Passwordでシークレットを設定）
+just deploy-local # Cloudflare Workers にデプロイ（ローカル環境変数を使用）
 just deploy-db    # 本番 D1 データベースを初期化
 just deploy-migrate-db  # 本番 DB をマイグレーション
 ```
@@ -55,15 +58,18 @@ just release-check # リリース前チェック（fmt + info + check + test）
 ```
 src/
 ├── admin/         # 管理画面機能
-│   ├── admin_auth.mbt       # Basic Auth 認証
-│   ├── admin_env.mbt        # 環境変数・D1取得
-│   ├── admin_form.mbt       # フォーム処理
-│   ├── admin_js.mbt         # JS interop
-│   ├── admin_repo.mbt       # 記事CRUD操作
-│   ├── admin_response.mbt   # HTTPレスポンス生成
-│   ├── admin_routes.mbt     # ルーティング
-│   ├── admin_templates.mbt  # HTMLテンプレート
-│   └── admin_types.mbt      # 型定義
+│   ├── admin_auth.mbt           # 認証ロジック
+│   ├── admin_webauthn.mbt       # WebAuthn 実装
+│   ├── admin_session.mbt        # セッション管理（JWT）
+│   ├── admin_credential_repo.mbt # WebAuthn 認証情報リポジトリ
+│   ├── admin_env.mbt            # 環境変数・D1/KV取得
+│   ├── admin_form.mbt           # フォーム処理
+│   ├── admin_js.mbt             # JS interop
+│   ├── admin_repo.mbt           # 記事CRUD操作
+│   ├── admin_response.mbt       # HTTPレスポンス生成
+│   ├── admin_routes.mbt         # ルーティング
+│   ├── admin_templates.mbt      # HTMLテンプレート
+│   └── admin_types.mbt          # 型定義
 ├── config/        # サイト設定（blog.toml から自動生成）
 │   └── site_config.mbt
 ├── handlers/      # パブリック側リクエストハンドラー
@@ -86,8 +92,9 @@ config/
 └── blog.toml     # サイト設定（タイトル、フッター文言等）
 
 static/
-├── styles.css    # スタイルシート
-└── mhx.js        # MHX インタラクティブライブラリ
+├── styles.css       # スタイルシート
+├── mhx.js           # MHX インタラクティブライブラリ
+└── ogp-default.png  # OGP デフォルト画像
 ```
 
 ## アーキテクチャ
@@ -100,7 +107,7 @@ static/
 
 2. **Handler Layer** (`src/handlers/`, `src/admin/`)
    - パブリック側：ブログ記事の表示
-   - 管理画面：記事の CRUD 操作、Basic Auth 認証
+   - 管理画面：記事の CRUD 操作、WebAuthn 認証
 
 3. **Repository Layer** (`src/repository/`, `src/admin/admin_repo.mbt`)
    - データベースアクセスの抽象化
@@ -125,13 +132,39 @@ Cloudflare Worker の fetch handler 直下で MoonBit の async API を使うと
 
 ### 認証
 
-Basic Auth で保護されています。環境変数で設定します。
+WebAuthn で保護されています。初回のみセットアップトークンで登録が必要です。
+
+#### 環境設定
+
+`wrangler.toml.example` を `wrangler.toml` にコピーして設定します。
 
 ```bash
-# wrangler.toml または Cloudflare ダッシュボードで設定
-ADMIN_USER="admin"
-ADMIN_PASS="your-password"
+# wrangler.toml
+[[kv_namespaces]]
+binding = "ADMIN_AUTH"
+id = "YOUR_KV_NAMESPACE_ID"  # wrangler kv:namespace create "ADMIN_AUTH" で取得
+
+[env.production.vars]
+RP_ID = "your-domain.com"        # WebAuthn Relying Party ID
+RP_ORIGIN = "https://your-domain.com"  # オリジン
+RP_NAME = "Your Site Name"       # サイト名
 ```
+
+#### シークレット（本番環境）
+
+```bash
+# 1Password で管理することを推奨
+ADMIN_USER_ID   # 管理者ユーザーID
+JWT_SECRET      # JWT シークレット
+ADMIN_SETUP_TOKEN # 初回登録用トークン（使い捨て）
+```
+
+#### 初回登録
+
+1. `ADMIN_SETUP_TOKEN` を設定
+2. `/admin/register` にアクセス
+3. トークンを入力して WebAuthn 登証器を登録
+4. 登録完了後、`ADMIN_SETUP_TOKEN` は削除推奨
 
 ### 機能
 
@@ -220,10 +253,29 @@ footer_html = "&copy; 2024 My Blog"
 <script src="/mhx.js" defer></script>
 ```
 
+## ページネーション
+
+記事一覧ページではページネーションが利用可能です。
+
+- デフォルト: 10件/ページ
+- 最大: 50件/ページ
+- クエリパラメータ `?page=N` でページ指定
+
+## OGP/Twitter Card 対応
+
+各記事ページで OGP と Twitter Card のメタタグを出力します。
+
+- デフォルト画像: `static/ogp-default.png`
+- 記事ごとのタイトル、説明、画像の設定が可能
+- SNS での共有時に最適化されたプレビューが表示されます
+
 ## 技術スタック
 
 - **MoonBit**: メインの実装言語
 - **Cloudflare Workers**: サーバーレス実行環境
 - **D1**: エッジ SQLite データベース
+- **KV**: WebAuthn 認証情報・チャレンジ保存
 - **TMPX**: 型安全な HTML テンプレートエンジン
 - **MHX**: ハイパーメディア駆動のインタラクティブ機能
+- **WebAuthn**: 生体認証・セキュリティキーによるログイン
+- **OGP/Twitter Card**: SNS 共享対応
