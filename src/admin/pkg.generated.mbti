@@ -5,6 +5,7 @@ import {
   "mizchi/cloudflare",
   "mizchi/js/core",
   "mizchi/js/web/http",
+  "moonbitlang/core/json",
 }
 
 // Values
@@ -30,6 +31,8 @@ pub fn post_status_label(PostStatus) -> String
 
 pub fn post_status_to_string(PostStatus) -> String
 
+pub async fn require_auth(@http.Request, @cloudflare.CloudflareEnv, String) -> Result[String?, @http.Response]
+
 pub async fn set_status(@core.Any, Int, PostStatus, String?, String) -> Unit
 
 pub async fn update_post(@core.Any, Int, String, String, String, String, String) -> Unit
@@ -50,12 +53,67 @@ pub struct AdminPost {
 pub fn AdminPost::new(Int, String, String, String, String, PostStatus, String?, String) -> Self
 pub impl Show for AdminPost
 
+type AuthOptionsResponse
+pub impl Show for AuthOptionsResponse
+pub impl ToJson for AuthOptionsResponse
+
+pub enum AuthResult {
+  Authenticated(String)
+  RedirectToLogin
+  Unauthorized
+  ConfigError(String)
+}
+
+type AuthVerifyRequest
+pub impl Show for AuthVerifyRequest
+pub impl @json.FromJson for AuthVerifyRequest
+
+type AuthenticatorSelectionJS
+pub impl Show for AuthenticatorSelectionJS
+
+type CredentialDescriptorJS
+pub impl Show for CredentialDescriptorJS
+pub impl @json.FromJson for CredentialDescriptorJS
+
+type JwtPayload
+pub impl Show for JwtPayload
+pub impl ToJson for JwtPayload
+pub impl @json.FromJson for JwtPayload
+
 pub enum PostStatus {
   Draft
   Published
 }
 pub impl Eq for PostStatus
 pub impl Show for PostStatus
+
+type PubKeyCredParamJS
+pub impl Show for PubKeyCredParamJS
+
+type RegOptionsResponse
+pub impl Show for RegOptionsResponse
+pub impl ToJson for RegOptionsResponse
+
+type RegVerifyRequest
+pub impl Show for RegVerifyRequest
+pub impl @json.FromJson for RegVerifyRequest
+
+type RelyingPartyInfoJS
+pub impl Show for RelyingPartyInfoJS
+pub impl ToJson for RelyingPartyInfoJS
+
+type StoredChallenge
+pub impl Show for StoredChallenge
+pub impl ToJson for StoredChallenge
+pub impl @json.FromJson for StoredChallenge
+
+type StoredCredential
+pub impl Show for StoredCredential
+pub impl ToJson for StoredCredential
+pub impl @json.FromJson for StoredCredential
+
+type UserInfoJS
+pub impl Show for UserInfoJS
 
 // Type aliases
 
