@@ -208,6 +208,7 @@ pub fn layout_with_meta(
         ]),
       ]),
       @tmpx.script([@tmpx.src("/mhx.js"), @tmpx.bool_attr("defer")], []),
+      @tmpx.script([@tmpx.src("/link-card.js"), @tmpx.bool_attr("defer")], []),
     ]),
   ])
   @tmpx.render(@tmpx.fragment([page, html]))
@@ -253,6 +254,7 @@ pub fn layout(title : String, content : @tmpx.Node) -> String raise {
         ]),
       ]),
       @tmpx.script([@tmpx.src("/mhx.js"), @tmpx.bool_attr("defer")], []),
+      @tmpx.script([@tmpx.src("/link-card.js"), @tmpx.bool_attr("defer")], []),
     ]),
   ])
   @tmpx.render(@tmpx.fragment([page, html]))
