@@ -4,6 +4,7 @@ import {
   "mizchi/js/web/http" as @http,
   "moonbitlang/core/strconv" as @strconv,
   "moonbitlang/core/json" as @json,
+  "f4ah6o/tmpx/tmpx" as @tmpx,
   "f4ah6o/simple-webauthn/server" as @webauthn_server,
   "f4ah6o/simple-webauthn/helpers" as @webauthn_helpers,
 }
