@@ -6,11 +6,9 @@ extern "js" fn parse_url(url_str : String) -> @core.Any =
 extern "js" fn get_pathname(url : @core.Any) -> String =
   #| (url) => url.pathname
 
-
 ///|
 extern "js" fn decode_uri_component(value : String) -> String =
   #| (value) => decodeURIComponent(value)
-
 
 ///|
 extern "js" fn now_iso() -> String =
@@ -176,7 +174,6 @@ extern "js" fn jwt_sign(
   #|   return data + "." + sigB64;
   #| }
 
-
 ///|
 /// Verify JWT token and return payload JSON string if valid.
 extern "js" fn jwt_verify_payload_json(
@@ -212,7 +209,6 @@ extern "js" fn jwt_verify_payload_json(
   #|     return undefined;
   #|   }
   #| }
-
 
 // =============================================================================
 // Crypto Utilities

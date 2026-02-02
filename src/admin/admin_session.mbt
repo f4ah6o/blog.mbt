@@ -107,7 +107,6 @@ async fn verify_session_token(token : String, secret : String) -> JwtPayload? {
   }
 }
 
-
 // =============================================================================
 // Session Validation
 // =============================================================================
@@ -161,7 +160,10 @@ async fn validate_session(
 
 ///|
 /// Create a redirect response that clears the session cookie (logout)
-fn redirect_with_logout_cookie(location : String, secure : Bool) -> @http.Response {
+fn redirect_with_logout_cookie(
+  location : String,
+  secure : Bool,
+) -> @http.Response {
   let cookie = build_logout_cookie(secure)
   let headers = @core.new_object()
   headers["Location"] = @core.any(location)

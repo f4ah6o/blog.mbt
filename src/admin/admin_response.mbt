@@ -10,7 +10,6 @@ fn redirect_to(location : String) -> @http.Response {
   @http.Response::new(body="", status=303, headers~)
 }
 
-
 ///|
 fn not_found_response() -> @http.Response {
   html_response(

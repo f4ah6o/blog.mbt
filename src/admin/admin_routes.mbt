@@ -235,7 +235,9 @@ async fn handle_register_verify(
     Ok(r) => r
     Err(e) =>
       return json_response(
-        "{\"error\":\"Invalid request body: " + e.to_string() + "\", \"received\": " +
+        "{\"error\":\"Invalid request body: " +
+        e.to_string() +
+        "\", \"received\": " +
         body +
         "}",
         400,
