@@ -107,6 +107,47 @@ extern "js" fn db_get_post_by_slug(
   #| }
 
 ///|
+extern "js" fn fetch_url(url : String) -> @core.Promise[String] =
+  #| async (url) => {
+  #|   try {
+  #|     const response = await fetch(url, {
+  #|       headers: {
+  #|         'User-Agent': 'Mozilla/5.0 (compatible; BlogBot/1.0)',
+  #|         'Accept': 'text/html,application/xhtml+xml'
+  #|       },
+  #|       redirect: 'follow'
+  #|     });
+  #|     if (!response.ok) return '';
+  #|     const text = await response.text();
+  #|     return text.substring(0, 50000);
+  #|   } catch (e) {
+  #|     return '';
+  #|   }
+  #| }
+
+///|
+extern "js" fn json_response(body : String, status : Int) -> @http.Response =
+  #| (body, status) => new Response(body, { status, headers: { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" } })
+
+///|
+fn json_escape(s : String) -> String {
+  let sb = StringBuilder::new()
+  sb.write_char('"')
+  for ch in s {
+    match ch {
+      '"' => sb.write_string("\\\"")
+      '\\' => sb.write_string("\\\\")
+      '\n' => sb.write_string("\\n")
+      '\r' => sb.write_string("\\r")
+      '\t' => sb.write_string("\\t")
+      _ => sb.write_char(ch)
+    }
+  }
+  sb.write_char('"')
+  sb.to_string()
+}
+
+///|
 pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
   @core.identity(async fn(
     req : @cloudflare.CloudflareRequest,
@@ -126,6 +167,36 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
             "<!DOCTYPE html><html><body><h1>500 Error</h1><p>Database not configured</p></body></html>",
             500,
           )
+        }
+
+        // Route: /api/ogp (OGP data fetch)
+        if pathname == "/api/ogp" {
+          let target_url = get_search_param(url, "url")
+          match target_url {
+            Some(u) => {
+              let html = fetch_url(u).wait()
+              if html.length() == 0 {
+                return json_response(
+                  "{\"error\": \"Failed to fetch URL\"}", 500,
+                )
+              }
+              let ogp = @lib.parse_ogp_from_html(html)
+              let json = "{\"title\": " +
+                json_escape(ogp.title) +
+                ", \"description\": " +
+                json_escape(ogp.description) +
+                ", \"image\": " +
+                json_escape(ogp.image) +
+                ", \"site_name\": " +
+                json_escape(ogp.site_name) +
+                "}"
+              return json_response(json, 200)
+            }
+            None =>
+              return json_response(
+                "{\"error\": \"Missing url parameter\"}", 400,
+              )
+          }
         }
 
         // Route: /api/posts (partial HTML for MHX)
@@ -160,7 +231,29 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
               )
             } else {
               let post = row_to_post(row)
-              let content = @templates.post_detail_content(post)
+              // Extract embed URLs and fetch data
+              let embed_urls = @lib.extract_embed_urls(post.content)
+              let embed_data : @hashmap.HashMap[String, @lib.EmbedData] = @hashmap.new()
+              for embed_url in embed_urls {
+                // Check if it's a YouTube URL
+                match @lib.parse_youtube_url(embed_url) {
+                  Some(video_id) => {
+                    embed_data[embed_url] = @lib.EmbedData::youtube(video_id)
+                    continue
+                  }
+                  None => ()
+                }
+                // Otherwise fetch OGP for card
+                let html = fetch_url(embed_url).wait()
+                if html.length() > 0 {
+                  let ogp = @lib.parse_ogp_from_html(html)
+                  let card = @lib.ogp_to_link_card(ogp, embed_url)
+                  embed_data[embed_url] = @lib.EmbedData::card(card)
+                }
+              }
+              let content = @templates.post_detail_content_with_embeds(
+                post, embed_data,
+              )
               let html = @templates.layout(
                 post.title + " - " + @config.SITE_TITLE,
                 content,

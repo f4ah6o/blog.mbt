@@ -2,8 +2,10 @@
 package "f4ah6o/blog.mbt/templates"
 
 import {
+  "f4ah6o/blog.mbt/lib",
   "f4ah6o/blog.mbt/models",
   "f4ah6o/tmpx/tmpx",
+  "moonbitlang/core/hashmap",
 }
 
 // Values
@@ -14,6 +16,8 @@ pub fn layout(String, @tmpx.Node) -> String raise
 pub fn layout_with_meta(String, @tmpx.Node, PageMeta) -> String raise
 
 pub fn post_detail_content(@models.BlogPost) -> @tmpx.Node
+
+pub fn post_detail_content_with_embeds(@models.BlogPost, @hashmap.HashMap[String, @lib.EmbedData]) -> @tmpx.Node
 
 pub fn post_list_content(Array[@models.BlogPost], Int, Int, Int) -> @tmpx.Node
 

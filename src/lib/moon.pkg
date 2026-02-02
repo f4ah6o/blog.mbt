@@ -1,5 +1,6 @@
 import {
   "f4ah6o/tmpx/tmpx",
+  "moonbitlang/core/hashmap",
 }
 
 options(

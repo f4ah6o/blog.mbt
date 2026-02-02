@@ -3,14 +3,61 @@ package "f4ah6o/blog.mbt/lib"
 
 import {
   "f4ah6o/tmpx/tmpx",
+  "moonbitlang/core/hashmap",
 }
 
 // Values
+pub fn detect_embed_type(String) -> EmbedType
+
+pub fn extract_embed_urls(String) -> Array[String]
+
+pub fn ogp_to_link_card(OgpData, String) -> LinkCard
+
+pub fn parse_ogp_from_html(String) -> OgpData
+
+pub fn parse_youtube_url(String) -> String?
+
+pub fn render_embed(EmbedType, String) -> @tmpx.Node
+
+pub fn render_link_card(LinkCard) -> @tmpx.Node
+
 pub fn render_markdown(String) -> @tmpx.Node
+
+pub fn render_markdown_with_embeds(String, @hashmap.HashMap[String, EmbedData]) -> @tmpx.Node
 
 // Errors
 
 // Types and methods
+pub enum EmbedData {
+  CardData(LinkCard)
+  YouTubeId(String)
+}
+pub fn EmbedData::card(LinkCard) -> Self
+pub fn EmbedData::youtube(String) -> Self
+
+pub enum EmbedType {
+  YouTube(String)
+  Unknown
+}
+
+pub struct LinkCard {
+  url : String
+  title : String
+  description : String
+  image_url : String
+  site_name : String
+}
+pub fn LinkCard::default(String) -> Self
+pub fn LinkCard::new(String, String, String, String, String) -> Self
+
+pub struct OgpData {
+  title : String
+  description : String
+  image : String
+  site_name : String
+  url : String
+}
+pub fn OgpData::empty() -> Self
 
 // Type aliases
 

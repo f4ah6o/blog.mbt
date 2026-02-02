@@ -6,12 +6,41 @@ priv enum ListKind {
 
 ///|
 pub fn render_markdown(content : String) -> @tmpx.Node {
-  let nodes = render_blocks(content)
+  render_markdown_with_embeds(content, @hashmap.new())
+}
+
+///|
+pub fn render_markdown_with_embeds(
+  content : String,
+  embed_data : @hashmap.HashMap[String, EmbedData],
+) -> @tmpx.Node {
+  let nodes = render_blocks_with_embeds(content, embed_data)
   @tmpx.fragment(nodes)
 }
 
 ///|
-fn render_blocks(content : String) -> Array[@tmpx.Node] {
+/// Extract all card and embed URLs from markdown content
+pub fn extract_embed_urls(content : String) -> Array[String] {
+  let urls : Array[String] = []
+  let lines = split_lines(content)
+  for line in lines {
+    match parse_card_block(line) {
+      Some(url) => urls.push(url)
+      None => ()
+    }
+    match parse_embed_block(line) {
+      Some(url) => urls.push(url)
+      None => ()
+    }
+  }
+  urls
+}
+
+///|
+fn render_blocks_with_embeds(
+  content : String,
+  embed_data : @hashmap.HashMap[String, EmbedData],
+) -> Array[@tmpx.Node] {
   let lines = split_lines(content)
   let nodes : Array[@tmpx.Node] = []
   let mut i = 0
@@ -27,6 +56,36 @@ fn render_blocks(content : String) -> Array[@tmpx.Node] {
       nodes.push(render_code_block(code))
       i = next_i
       continue
+    }
+    // Check for [!card](url) or [!embed](url) block-level syntax
+    match parse_card_block(line) {
+      Some(url) => {
+        let node = match embed_data.get(url) {
+          Some(CardData(card)) => render_link_card(card)
+          _ => render_link_card(LinkCard::default(url))
+        }
+        nodes.push(node)
+        i = i + 1
+        continue
+      }
+      None => ()
+    }
+    match parse_embed_block(line) {
+      Some(url) => {
+        let node = match embed_data.get(url) {
+          Some(YouTubeId(video_id)) => render_youtube_embed(video_id)
+          Some(CardData(card)) => render_link_card(card)
+          None => {
+            // Fallback: detect type and render
+            let embed_type = detect_embed_type(url)
+            render_embed(embed_type, url)
+          }
+        }
+        nodes.push(node)
+        i = i + 1
+        continue
+      }
+      None => ()
     }
     match parse_heading(line) {
       Some((level, text)) => {
@@ -201,7 +260,51 @@ fn consume_paragraph(lines : Array[String], start : Int) -> (String, Int) {
 fn is_block_start(line : String) -> Bool {
   is_fence(line) ||
   parse_heading(line) is Some(_) ||
-  parse_list_item(line) is Some(_)
+  parse_list_item(line) is Some(_) ||
+  parse_card_block(line) is Some(_) ||
+  parse_embed_block(line) is Some(_)
+}
+
+///|
+fn parse_card_block(line : String) -> String? {
+  let trimmed = line.trim().to_string()
+  // Match [!card](url)
+  if !trimmed.has_prefix("[!card]("[:]) {
+    return None
+  }
+  if !trimmed.has_suffix(")"[:]) {
+    return None
+  }
+  // Extract URL between [!card]( and )
+  let start = 8 // length of "[!card]("
+  let end = trimmed.length() - 1
+  if end <= start {
+    return None
+  }
+  let url_view = try! trimmed[start:end]
+  let url = url_view.to_string()
+  sanitize_link(url)
+}
+
+///|
+fn parse_embed_block(line : String) -> String? {
+  let trimmed = line.trim().to_string()
+  // Match [!embed](url)
+  if !trimmed.has_prefix("[!embed]("[:]) {
+    return None
+  }
+  if !trimmed.has_suffix(")"[:]) {
+    return None
+  }
+  // Extract URL between [!embed]( and )
+  let start = 9 // length of "[!embed]("
+  let end = trimmed.length() - 1
+  if end <= start {
+    return None
+  }
+  let url_view = try! trimmed[start:end]
+  let url = url_view.to_string()
+  sanitize_link(url)
 }
 
 ///|
