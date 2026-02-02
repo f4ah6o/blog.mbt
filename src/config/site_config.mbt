@@ -20,4 +20,4 @@ pub const SITE_DESCRIPTION : String = "個人ブログ"
 
 ///|
 /// Default OGP image path (relative to SITE_URL, or absolute URL)
-pub const DEFAULT_OG_IMAGE : String = "/static/ogp-default.png"
+pub const DEFAULT_OG_IMAGE : String = "/ogp-default.png"

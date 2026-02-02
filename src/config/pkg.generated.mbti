@@ -2,17 +2,17 @@
 package "f4ah6o/blog.mbt/config"
 
 // Values
-pub const DEFAULT_OG_IMAGE : String = "/static/ogp-default.png"
+pub const DEFAULT_OG_IMAGE : String = "/ogp-default.png"
 
 pub const FOOTER_TEXT : String = "2026 f12o.com"
 
-pub const SITE_DESCRIPTION : String = "技術と設計についての備忘録"
+pub const SITE_DESCRIPTION : String = "個人ブログ"
 
 pub const SITE_NAME : String = "設計の途中"
 
 pub const SITE_TITLE : String = "設計の途中"
 
-pub const SITE_URL : String = "https://f12o.com"
+pub const SITE_URL : String = "https://blog.f12o.com"
 
 // Errors
 
