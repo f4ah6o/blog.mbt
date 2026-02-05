@@ -43,7 +43,7 @@ fn pagination_buttons(page : Int, total_pages : Int, limit : Int) -> @tmpx.Node 
       @tmpx.class_("btn btn-prev"),
       @tmpx.mx_get(prev_url),
       @tmpx.mx_target("#posts-container"),
-      @tmpx.mx_swap(@tmpx.InnerHTML),
+      @tmpx.mx_swap(@tmpx.inner_html()),
       @tmpx.mx_push_url_custom(
         "/posts?page=" + (page - 1).to_string() + "&limit=" + limit.to_string(),
       ),
@@ -60,7 +60,7 @@ fn pagination_buttons(page : Int, total_pages : Int, limit : Int) -> @tmpx.Node 
       @tmpx.class_("btn btn-next"),
       @tmpx.mx_get(next_url),
       @tmpx.mx_target("#posts-container"),
-      @tmpx.mx_swap(@tmpx.InnerHTML),
+      @tmpx.mx_swap(@tmpx.inner_html()),
       @tmpx.mx_push_url_custom(
         "/posts?page=" + (page + 1).to_string() + "&limit=" + limit.to_string(),
       ),

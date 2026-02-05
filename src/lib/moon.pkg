@@ -1,5 +1,5 @@
 import {
-  "f4ah6o/tmpx/tmpx",
+  "f4ah6o/blog.mbt/tmpx_compat" as @tmpx,
   "moonbitlang/core/hashmap",
 }
 
