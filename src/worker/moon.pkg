@@ -5,12 +5,10 @@ import {
   "f4ah6o/blog.mbt/models",
   "f4ah6o/blog.mbt/templates",
   "mizchi/cloudflare",
-  "mizchi/js",
   "mizchi/js/builtins/global",
   "mizchi/js/core",
   "mizchi/js/web/http",
-  "mizchi/js/web/url",
-  "moonbitlang/core/hashmap",
+  "moonbitlang/core/hashmap" @hashmap,
 }
 
 options(

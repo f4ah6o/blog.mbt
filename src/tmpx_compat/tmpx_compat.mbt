@@ -1,11 +1,15 @@
 ///|
 pub type Node = @tmpx_core.Node
+
 ///|
 pub type Attr = @tmpx_core.Attr
+
 ///|
 pub type Part = @tmpx_core.Part
+
 ///|
 pub type MxSwap = @tmpx_core.MxSwap
+
 ///|
 pub fn inner_html() -> MxSwap {
   @tmpx_core.InnerHTML
