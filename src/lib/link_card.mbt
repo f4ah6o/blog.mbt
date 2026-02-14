@@ -10,6 +10,7 @@ pub struct LinkCard {
 ///|
 pub enum EmbedType {
   YouTube(String) // video_id
+  Slide(String) // embed_url
   Unknown
 }
 
@@ -90,9 +91,65 @@ fn extract_until_delimiter(view : StringView) -> String {
 }
 
 ///|
+fn parse_google_slides_embed_url(url : String) -> String? {
+  let prefix = "docs.google.com/presentation/d/"
+  match url.find(prefix[:]) {
+    Some(start) => {
+      let after_prefix_view = try! url[start + prefix.length():]
+      let after_prefix = after_prefix_view.to_string()
+      let (is_published, id_view) = if after_prefix.has_prefix("e/"[:]) {
+        (true, try! after_prefix[2:])
+      } else {
+        (false, after_prefix[:])
+      }
+      let deck_id = extract_until_delimiter(id_view)
+      if deck_id.length() == 0 {
+        None
+      } else if is_published {
+        Some(
+          "https://docs.google.com/presentation/d/e/" + deck_id + "/embed",
+        )
+      } else {
+        Some("https://docs.google.com/presentation/d/" + deck_id + "/embed")
+      }
+    }
+    None => None
+  }
+}
+
+///|
+fn parse_slide_url(url : String) -> String? {
+  let trimmed = url.trim().to_string()
+  if !trimmed.has_prefix("http://"[:]) && !trimmed.has_prefix("https://"[:]) {
+    return None
+  }
+
+  match parse_google_slides_embed_url(trimmed) {
+    Some(embed_url) => return Some(embed_url)
+    None => ()
+  }
+
+  if trimmed.contains("speakerdeck.com/player/"[:]) {
+    return Some(trimmed)
+  }
+  if trimmed.contains("slideshare.net/slideshow/embed_code/"[:]) {
+    return Some(trimmed)
+  }
+  if trimmed.contains("docswell.com/slide/"[:]) &&
+    trimmed.contains("/embed"[:]) {
+    return Some(trimmed)
+  }
+  None
+}
+
+///|
 pub fn detect_embed_type(url : String) -> EmbedType {
   match parse_youtube_url(url) {
     Some(video_id) => return YouTube(video_id)
+    None => ()
+  }
+  match parse_slide_url(url) {
+    Some(embed_url) => return Slide(embed_url)
     None => ()
   }
   Unknown
@@ -145,6 +202,7 @@ pub fn render_link_card(card : LinkCard) -> @tmpx.Node {
 pub fn render_embed(embed_type : EmbedType, url : String) -> @tmpx.Node {
   match embed_type {
     YouTube(video_id) => render_youtube_embed(video_id)
+    Slide(embed_url) => render_slide_embed(embed_url)
     Unknown => render_link_card(LinkCard::default(url))
   }
 }
@@ -161,6 +219,21 @@ fn render_youtube_embed(video_id : String) -> @tmpx.Node {
           "allow", "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture",
         ),
         @tmpx.attr("allowfullscreen", "true"),
+      ],
+      [],
+    ),
+  ])
+}
+
+///|
+fn render_slide_embed(embed_url : String) -> @tmpx.Node {
+  @tmpx.div([@tmpx.class_("embed-card embed-slide")], [
+    @tmpx.iframe(
+      [
+        @tmpx.src(embed_url),
+        @tmpx.attr("frameborder", "0"),
+        @tmpx.attr("allowfullscreen", "true"),
+        @tmpx.attr("loading", "lazy"),
       ],
       [],
     ),

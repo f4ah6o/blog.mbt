@@ -72,15 +72,16 @@ fn render_blocks_with_embeds(
     }
     match parse_embed_block(line) {
       Some(url) => {
-        let node = match embed_data.get(url) {
-          Some(YouTubeId(video_id)) => render_youtube_embed(video_id)
-          Some(CardData(card)) => render_link_card(card)
-          None => {
-            // Fallback: detect type and render
-            let embed_type = detect_embed_type(url)
-            render_embed(embed_type, url)
+        let node = match detect_embed_type(url) {
+          YouTube(video_id) => render_youtube_embed(video_id)
+          Slide(embed_url) => render_embed(Slide(embed_url), url)
+          Unknown =>
+            match embed_data.get(url) {
+              Some(YouTubeId(video_id)) => render_youtube_embed(video_id)
+              Some(CardData(card)) => render_link_card(card)
+              None => render_embed(Unknown, url)
+            }
           }
-        }
         nodes.push(node)
         i = i + 1
         continue
@@ -416,6 +417,20 @@ fn render_inlines(text : String) -> Array[@tmpx.Node] {
         }
       }
     }
+    if rest.has_prefix("!["[:]) {
+      match parse_image(rest) {
+        Some((node, next_view)) => {
+          nodes.push(node)
+          rest = next_view
+          continue
+        }
+        None => {
+          nodes.push(@tmpx.text("!"))
+          rest = try! rest[1:]
+          continue
+        }
+      }
+    }
     if rest.has_prefix("["[:]) {
       match parse_link(rest) {
         Some((node, next_view)) => {
@@ -494,6 +509,42 @@ fn parse_code_span(rest : StringView) -> (@tmpx.Node, StringView)? {
 }
 
 ///|
+fn parse_image(rest : StringView) -> (@tmpx.Node, StringView)? {
+  if !rest.has_prefix("!["[:]) {
+    return None
+  }
+  let tail = try! rest[2:]
+  match tail.find("]"[:]) {
+    Some(close) => {
+      let alt_view = try! tail[:close]
+      let after_alt = try! tail[close + 1:]
+      if !after_alt.has_prefix("("[:]) {
+        return None
+      }
+      let url_tail = try! after_alt[1:]
+      match url_tail.find(")"[:]) {
+        Some(close_url) => {
+          let url_view = try! url_tail[:close_url]
+          let after = try! url_tail[close_url + 1:]
+          match sanitize_image_src(url_view.to_string()) {
+            Some(src) => {
+              let alt = alt_view.to_string()
+              Some((
+                @tmpx.img([@tmpx.src(src), @tmpx.attr("alt", alt)]),
+                after,
+              ))
+            }
+            None => None
+          }
+        }
+        None => None
+      }
+    }
+    None => None
+  }
+}
+
+///|
 fn parse_link(rest : StringView) -> (@tmpx.Node, StringView)? {
   if !rest.has_prefix("["[:]) {
     return None
@@ -527,6 +578,18 @@ fn parse_link(rest : StringView) -> (@tmpx.Node, StringView)? {
 }
 
 ///|
+fn sanitize_image_src(url : String) -> String? {
+  let trimmed = url.trim().to_string()
+  if trimmed.has_prefix("http://"[:]) ||
+    trimmed.has_prefix("https://"[:]) ||
+    trimmed.has_prefix("/"[:]) {
+    Some(trimmed)
+  } else {
+    None
+  }
+}
+
+///|
 fn sanitize_link(url : String) -> String? {
   let trimmed = url.trim().to_string()
   if trimmed.has_prefix("http://"[:]) ||
@@ -544,6 +607,7 @@ fn find_next_special(view : StringView) -> Int? {
   let mut min = update_min(None, view.find("**"[:]))
   min = update_min(min, view.find("*"[:]))
   min = update_min(min, view.find("`"[:]))
+  min = update_min(min, view.find("!["[:]))
   update_min(min, view.find("["[:]))
 }
 

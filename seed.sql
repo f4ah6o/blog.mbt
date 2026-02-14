@@ -38,5 +38,14 @@ VALUES
    'Adding RSS feed support to your blog.',
    'published', '2026-01-30T10:00:00Z', '2026-01-30T10:00:00Z'),
   ('Markdown Support', 'markdown-support', 'Rich text formatting',
-   'How to add markdown rendering to your posts.',
+   '# Slide Test
+
+SpeakerDeck:
+[!embed](https://speakerdeck.com/player/d3030541c29e4ae7ac68b6ac7622209e)
+
+Docswell:
+[!embed](https://www.docswell.com/slide/ZVMQ74/embed)
+
+Google Slides:
+[!embed](https://docs.google.com/presentation/d/1NTk3YAo_V2XQp-mkI1Xl3SAAOY1pYuhY3BQj0wR4FMw/preview?slide=id.p)',
    'published', '2026-01-30T11:00:00Z', '2026-01-30T11:00:00Z');

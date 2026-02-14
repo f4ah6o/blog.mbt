@@ -64,6 +64,17 @@ extern "js" fn html_response_js(body : String, status : Int) -> @http.Response =
   #| (body, status) => new Response(body, { status, headers: { "Content-Type": "text/html; charset=utf-8" } })
 
 ///|
+extern "js" fn markdown_response_js(
+  body : String,
+  status : Int,
+) -> @http.Response =
+  #| (body, status) => new Response(body, { status, headers: { "Content-Type": "text/markdown; charset=utf-8" } })
+
+///|
+extern "js" fn text_response_js(body : String, status : Int) -> @http.Response =
+  #| (body, status) => new Response(body, { status, headers: { "Content-Type": "text/plain; charset=utf-8" } })
+
+///|
 extern "js" fn get_db_from_env(env : @cloudflare.CloudflareEnv) -> @core.Any =
   #| (env) => env.BLOG_DB
 
@@ -128,6 +139,85 @@ extern "js" fn fetch_url(url : String) -> @core.Promise[String] =
 ///|
 extern "js" fn json_response(body : String, status : Int) -> @http.Response =
   #| (body, status) => new Response(body, { status, headers: { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" } })
+
+///|
+fn strip_md_suffix(slug : String) -> String? {
+  if slug.has_suffix(".md") && slug.length() > 3 {
+    let view = try! slug[:slug.length() - 3]
+    let base_slug = view.to_string()
+    if base_slug.length() == 0 {
+      None
+    } else {
+      Some(base_slug)
+    }
+  } else {
+    None
+  }
+}
+
+///|
+fn absolute_post_url(slug : String) -> String {
+  let base = @config.SITE_URL
+  if base.has_suffix("/") {
+    base + "posts/" + slug
+  } else {
+    base + "/posts/" + slug
+  }
+}
+
+///|
+fn yaml_quote(value : String) -> String {
+  let sb = StringBuilder::new()
+  sb.write_char('"')
+  for ch in value {
+    match ch {
+      '"' => sb.write_string("\\\"")
+      '\\' => sb.write_string("\\\\")
+      '\n' => sb.write_string("\\n")
+      '\r' => sb.write_string("\\r")
+      '\t' => sb.write_string("\\t")
+      _ => sb.write_char(ch)
+    }
+  }
+  sb.write_char('"')
+  sb.to_string()
+}
+
+///|
+fn render_markdown_with_front_matter(post : @models.BlogPost) -> String {
+  let sb = StringBuilder::new()
+  sb.write_string("---\n")
+  sb.write_string("title: ")
+  sb.write_string(yaml_quote(post.title))
+  sb.write_char('\n')
+  sb.write_string("slug: ")
+  sb.write_string(yaml_quote(post.slug))
+  sb.write_char('\n')
+  sb.write_string("excerpt: ")
+  sb.write_string(yaml_quote(post.excerpt))
+  sb.write_char('\n')
+  sb.write_string("published_at: ")
+  sb.write_string(yaml_quote(post.published_at))
+  sb.write_char('\n')
+  sb.write_string("updated_at: ")
+  sb.write_string(yaml_quote(post.updated_at))
+  sb.write_char('\n')
+  sb.write_string("url: ")
+  sb.write_string(yaml_quote(absolute_post_url(post.slug)))
+  sb.write_string("\n---\n\n")
+  sb.write_string(post.content)
+  sb.to_string()
+}
+
+///|
+async fn get_post_by_slug(db : @core.Any, slug : String) -> @models.BlogPost? {
+  let row = db_get_post_by_slug(db, slug).wait()
+  if @core.is_null(row) {
+    None
+  } else {
+    Some(row_to_post(row))
+  }
+}
 
 ///|
 fn json_escape(s : String) -> String {
@@ -221,44 +311,68 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
         // Route: /posts/:slug (post detail)
         match extract_slug(pathname) {
           Some(slug) => {
-            let row = db_get_post_by_slug(db, slug).wait()
-            if @core.is_null(row) {
-              return html_response_js(
-                @templates.error_layout(
-                  "404 Not Found", "The requested post was not found.",
-                ),
-                404,
-              )
-            } else {
-              let post = row_to_post(row)
-              // Extract embed URLs and fetch data
-              let embed_urls = @lib.extract_embed_urls(post.content)
-              let embed_data : @hashmap.HashMap[String, @lib.EmbedData] = @hashmap.new()
-              for embed_url in embed_urls {
-                // Check if it's a YouTube URL
-                match @lib.parse_youtube_url(embed_url) {
-                  Some(video_id) => {
-                    embed_data[embed_url] = @lib.EmbedData::youtube(video_id)
-                    continue
-                  }
-                  None => ()
+            // Route: /posts/:slug.md (raw markdown with front matter)
+            match strip_md_suffix(slug) {
+              Some(base_slug) => {
+                let post_opt = match get_post_by_slug(db, base_slug) {
+                  Some(post) => Some(post)
+                  // Compatibility: if slug itself exists with ".md", serve it too.
+                  None => get_post_by_slug(db, slug)
                 }
-                // Otherwise fetch OGP for card
-                let html = fetch_url(embed_url).wait()
-                if html.length() > 0 {
-                  let ogp = @lib.parse_ogp_from_html(html)
-                  let card = @lib.ogp_to_link_card(ogp, embed_url)
-                  embed_data[embed_url] = @lib.EmbedData::card(card)
+                match post_opt {
+                  Some(post) =>
+                    return markdown_response_js(
+                      render_markdown_with_front_matter(post),
+                      200,
+                    )
+                  None =>
+                    return text_response_js(
+                      "404 Not Found\nThe requested markdown post was not found.\n",
+                      404,
+                    )
                 }
               }
-              let content = @templates.post_detail_content_with_embeds(
-                post, embed_data,
-              )
-              let html = @templates.layout(
-                post.title + " - " + @config.SITE_TITLE,
-                content,
-              )
-              return html_response_js(html, 200)
+              None => ()
+            }
+
+            match get_post_by_slug(db, slug) {
+              None =>
+                return html_response_js(
+                  @templates.error_layout(
+                    "404 Not Found", "The requested post was not found.",
+                  ),
+                  404,
+                )
+              Some(post) => {
+              // Extract embed URLs and fetch data
+                let embed_urls = @lib.extract_embed_urls(post.content)
+                let embed_data : @hashmap.HashMap[String, @lib.EmbedData] = @hashmap.new()
+                for embed_url in embed_urls {
+                  // Check if it's a YouTube URL
+                  match @lib.parse_youtube_url(embed_url) {
+                    Some(video_id) => {
+                      embed_data[embed_url] = @lib.EmbedData::youtube(video_id)
+                      continue
+                    }
+                    None => ()
+                  }
+                  // Otherwise fetch OGP for card
+                  let html = fetch_url(embed_url).wait()
+                  if html.length() > 0 {
+                    let ogp = @lib.parse_ogp_from_html(html)
+                    let card = @lib.ogp_to_link_card(ogp, embed_url)
+                    embed_data[embed_url] = @lib.EmbedData::card(card)
+                  }
+                }
+                let content = @templates.post_detail_content_with_embeds(
+                  post, embed_data,
+                )
+                let html = @templates.layout(
+                  post.title + " - " + @config.SITE_TITLE,
+                  content,
+                )
+                return html_response_js(html, 200)
+              }
             }
           }
           None => ()

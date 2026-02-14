@@ -261,6 +261,33 @@ footer_html = "&copy; 2024 My Blog"
 - 最大: 50件/ページ
 - クエリパラメータ `?page=N` でページ指定
 
+## Markdown 記法
+
+### Raw Markdown 配信
+
+記事URLの末尾に `.md` をつけると、raw markdown を返します。
+
+- 例: `/posts/hello-world.md`
+- Content-Type: `text/markdown; charset=utf-8`
+- 先頭に YAML front matter が付きます:
+  - `title`
+  - `slug`
+  - `excerpt`
+  - `published_at`
+  - `updated_at`
+  - `url`
+
+### 本文で使える記法
+
+- 画像: `![alt text](https://example.com/image.png)` / `![alt text](/static/image.png)`
+- 埋め込み: `[!embed](URL)`
+  - YouTube URL
+  - Google Slides（`docs.google.com/presentation/d/.../embed`）
+  - SpeakerDeck（`speakerdeck.com/player/...`）
+  - SlideShare（`slideshare.net/slideshow/embed_code/...`）
+
+注: SpeakerDeck / SlideShare は埋め込みURL前提です。通常の共有URLはリンクカード表示にフォールバックします。
+
 ## OGP/Twitter Card 対応
 
 各記事ページで OGP と Twitter Card のメタタグを出力します。

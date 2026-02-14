@@ -2,7 +2,7 @@ let handler = null;
 export default {
   async fetch(request, env, ctx) {
     if (handler === null) {
-      const mod = await import("../target/js/release/build/worker/worker.js");
+      const mod = await import("../target/js/debug/build/worker/worker.js");
       handler = mod.get_fetch_handler();
     }
     if (handler.length >= 5) {

@@ -181,6 +181,14 @@ body {
   margin: 0 0 1rem;
 }
 
+.post-detail .post-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1.25rem auto;
+  border-radius: 8px;
+}
+
 .post-detail .post-footer {
   padding-top: 1rem;
   border-top: 1px solid #eee;
@@ -324,6 +332,12 @@ body {
   aspect-ratio: 16 / 9;
   border: none;
   border-radius: 8px;
+}
+
+.embed-slide iframe {
+  max-width: 100%;
+  min-height: 360px;
+  background: #111;
 }
 
 .embed-twitter {

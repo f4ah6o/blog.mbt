@@ -37,6 +37,7 @@ pub fn EmbedData::youtube(String) -> Self
 
 pub enum EmbedType {
   YouTube(String)
+  Slide(String)
   Unknown
 }
 
@@ -62,4 +63,3 @@ pub fn OgpData::empty() -> Self
 // Type aliases
 
 // Traits
-
