@@ -256,6 +256,13 @@ footer_html = "&copy; 2024 My Blog"
 - 最大: 50件/ページ
 - クエリパラメータ `?page=N` でページ指定
 
+## RSS Feed
+
+RSS フィードは `/rss.xml` で配信されます。
+
+- Content-Type: `application/rss+xml; charset=utf-8`
+- 公開済み記事の最新30件を含みます
+
 ## Markdown 記法
 
 ### Raw Markdown 配信

@@ -76,6 +76,10 @@ extern "js" fn text_response_js(body : String, status : Int) -> @http.Response =
   #| (body, status) => new Response(body, { status, headers: { "Content-Type": "text/plain; charset=utf-8" } })
 
 ///|
+extern "js" fn rss_response_js(body : String, status : Int) -> @http.Response =
+  #| (body, status) => new Response(body, { status, headers: { "Content-Type": "application/rss+xml; charset=utf-8" } })
+
+///|
 extern "js" fn get_db_from_env(env : @cloudflare.CloudflareEnv) -> @core.Any =
   #| (env) => env.BLOG_DB
 
@@ -143,6 +147,18 @@ extern "js" fn fetch_url(url : String) -> @core.Promise[String] =
 ///|
 extern "js" fn json_response(body : String, status : Int) -> @http.Response =
   #| (body, status) => new Response(body, { status, headers: { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" } })
+
+///|
+extern "js" fn to_rfc2822(datetime : String) -> String =
+  #| (datetime) => {
+  #|   if (!datetime) return new Date().toUTCString();
+  #|   const normalized = datetime.includes("T")
+  #|     ? datetime
+  #|     : datetime.replace(" ", "T") + "Z";
+  #|   const parsed = new Date(normalized);
+  #|   if (Number.isNaN(parsed.getTime())) return new Date().toUTCString();
+  #|   return parsed.toUTCString();
+  #| }
 
 ///|
 fn strip_md_suffix(slug : String) -> String? {
@@ -245,6 +261,97 @@ fn json_escape(s : String) -> String {
 }
 
 ///|
+fn xml_escape(s : String) -> String {
+  let sb = StringBuilder::new()
+  for ch in s {
+    match ch {
+      '&' => sb.write_string("&amp;")
+      '<' => sb.write_string("&lt;")
+      '>' => sb.write_string("&gt;")
+      '"' => sb.write_string("&quot;")
+      '\'' => sb.write_string("&apos;")
+      _ => sb.write_char(ch)
+    }
+  }
+  sb.to_string()
+}
+
+///|
+fn feed_excerpt(post : @models.BlogPost) -> String {
+  let excerpt = post.excerpt.trim().to_string()
+  if excerpt.length() > 0 {
+    return excerpt
+  }
+  let compact = post.content
+    .replace_all(old="\r", new=" ")
+    .replace_all(old="\n", new=" ")
+    .trim()
+    .to_string()
+  if compact.length() > 200 {
+    let sb = StringBuilder::new()
+    let mut count = 0
+    for ch in compact {
+      if count >= 200 {
+        break
+      }
+      sb.write_char(ch)
+      count = count + 1
+    }
+    sb.write_string("...")
+    sb.to_string()
+  } else {
+    compact
+  }
+}
+
+///|
+fn render_rss_feed(posts : Array[@models.BlogPost]) -> String {
+  let sb = StringBuilder::new()
+  sb.write_string("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+  sb.write_string("<rss version=\"2.0\">\n")
+  sb.write_string("  <channel>\n")
+  sb.write_string("    <title>")
+  sb.write_string(xml_escape(@config.SITE_NAME))
+  sb.write_string("</title>\n")
+  sb.write_string("    <link>")
+  sb.write_string(xml_escape(@config.SITE_URL))
+  sb.write_string("</link>\n")
+  sb.write_string("    <description>")
+  sb.write_string(xml_escape(@config.SITE_DESCRIPTION))
+  sb.write_string("</description>\n")
+  sb.write_string("    <language>ja</language>\n")
+  if posts.length() > 0 {
+    let latest = posts[0]
+    sb.write_string("    <lastBuildDate>")
+    sb.write_string(to_rfc2822(latest.updated_at))
+    sb.write_string("</lastBuildDate>\n")
+  }
+  for post in posts {
+    let link = absolute_post_url(post.slug)
+    sb.write_string("    <item>\n")
+    sb.write_string("      <title>")
+    sb.write_string(xml_escape(post.title))
+    sb.write_string("</title>\n")
+    sb.write_string("      <link>")
+    sb.write_string(xml_escape(link))
+    sb.write_string("</link>\n")
+    sb.write_string("      <guid>")
+    sb.write_string(xml_escape(link))
+    sb.write_string("</guid>\n")
+    sb.write_string("      <pubDate>")
+    sb.write_string(to_rfc2822(post.published_at))
+    sb.write_string("</pubDate>\n")
+    sb.write_string("      <description>")
+    sb.write_string(xml_escape(feed_excerpt(post)))
+    sb.write_string("</description>\n")
+    sb.write_string("    </item>\n")
+  }
+  sb.write_string("  </channel>\n")
+  sb.write_string("</rss>\n")
+  sb.to_string()
+}
+
+///|
 pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
   @core.identity(async fn(
     req : @cloudflare.CloudflareRequest,
@@ -313,6 +420,17 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
             posts, page, total_pages, limit,
           )
           return html_response_js(html, 200)
+        }
+
+        // Route: /rss.xml (RSS feed for published posts)
+        if pathname == "/rss.xml" {
+          let rows_any = db_list_posts(db, 30, 0).wait()
+          let rows_arr : Array[@core.Any] = rows_any.cast()
+          let posts : Array[@models.BlogPost] = []
+          for row in rows_arr {
+            posts.push(row_to_post(row))
+          }
+          return rss_response_js(render_rss_feed(posts), 200)
         }
 
         // Route: /posts/:slug (post detail)
@@ -398,9 +516,23 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
                 let content = @templates.post_detail_content_with_embeds(
                   post, embed_data,
                 )
-                let html = @templates.layout(
+                let description = if post.excerpt.is_empty() {
+                  @config.SITE_DESCRIPTION
+                } else {
+                  post.excerpt
+                }
+                let meta = @templates.PageMeta::{
+                  title: post.title,
+                  description,
+                  url: "/posts/" + post.slug,
+                  og_type: "article",
+                  image_url: None,
+                  twitter_card: Some("summary_large_image"),
+                }
+                let html = @templates.layout_with_meta(
                   post.title + " - " + @config.SITE_TITLE,
                   content,
+                  meta,
                 )
                 return html_response_js(html, 200)
               }
@@ -425,7 +557,19 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
           let content = @templates.post_list_content(
             posts, page, total_pages, limit,
           )
-          let html = @templates.layout("Posts - " + @config.SITE_TITLE, content)
+          let meta = @templates.PageMeta::{
+            title: "Posts - " + @config.SITE_NAME,
+            description: @config.SITE_DESCRIPTION,
+            url: "/posts",
+            og_type: "website",
+            image_url: None,
+            twitter_card: Some("summary_large_image"),
+          }
+          let html = @templates.layout_with_meta(
+            "Posts - " + @config.SITE_TITLE,
+            content,
+            meta,
+          )
           return html_response_js(html, 200)
         }
 

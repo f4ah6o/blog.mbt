@@ -98,19 +98,24 @@ fn meta_tags(meta : PageMeta?) -> Array[@tmpx.Node] raise {
     None => abs_url(@config.DEFAULT_OG_IMAGE)
   }
 
-  // Twitter card type: summary_large_image if we have an image, otherwise summary
+  // Prefer large cards when an image is available so link previews are prominent on X.
   let twitter_card_type = match meta {
     Some(m) =>
       match m.twitter_card {
         Some(tc) => tc
         None =>
-          if image_url != abs_url(@config.DEFAULT_OG_IMAGE) {
+          if image_url.length() > 0 {
             "summary_large_image"
           } else {
             "summary"
           }
       }
-    None => "summary"
+    None =>
+      if image_url.length() > 0 {
+        "summary_large_image"
+      } else {
+        "summary"
+      }
   }
 
   // Standard meta description (always included)
