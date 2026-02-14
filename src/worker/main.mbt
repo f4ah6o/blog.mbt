@@ -52,10 +52,11 @@ fn row_to_post(row : @core.Any) -> @models.BlogPost {
     excerpt_raw.cast()
   }
   let content : String = row["content"].cast()
+  let slide_flag = @cloudflare.js_number_to_int(row["slide_flag"]) == 1
   let published_at : String = row["published_at"].cast()
   let updated_at : String = row["updated_at"].cast()
   @models.BlogPost::new(
-    id, title, slug, excerpt, content, published_at, updated_at,
+    id, title, slug, excerpt, content, slide_flag, published_at, updated_at,
   )
 }
 
@@ -88,7 +89,10 @@ extern "js" fn get_pathname(url : @core.Any) -> String =
 
 ///|
 extern "js" fn get_search_param(url : @core.Any, name : String) -> String? =
-  #| (url, name) => url.searchParams.get(name)
+  #| (url, name) => {
+  #|   const value = url.searchParams.get(name)
+  #|   return value === null ? undefined : value
+  #| }
 
 ///|
 extern "js" fn db_count_posts(db : @core.Any) -> @core.Promise[Int] =
@@ -195,6 +199,9 @@ fn render_markdown_with_front_matter(post : @models.BlogPost) -> String {
   sb.write_char('\n')
   sb.write_string("excerpt: ")
   sb.write_string(yaml_quote(post.excerpt))
+  sb.write_char('\n')
+  sb.write_string("slide_flag: ")
+  sb.write_string(yaml_quote(if post.slide_flag { "true" } else { "false" }))
   sb.write_char('\n')
   sb.write_string("published_at: ")
   sb.write_string(yaml_quote(post.published_at))
@@ -344,17 +351,41 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
                   404,
                 )
               Some(post) => {
-              // Extract embed URLs and fetch data
+                if post.slide_flag {
+                  let embed_mode = match get_search_param(url, "embed") {
+                    Some(v) => {
+                      let normalized = v.trim().to_lower()
+                      normalized == "1" || normalized == "true"
+                    }
+                    None => false
+                  }
+                  let slide_html = @lib.render_slide_deck_page(
+                    post.title,
+                    post.slug,
+                    post.content,
+                    embed_mode~,
+                  )
+                  return match slide_html {
+                    Ok(html) => html_response_js(html, 200)
+                    Err(msg) =>
+                      html_response_js(
+                        @templates.error_layout("Slide Render Error", msg),
+                        500,
+                      )
+                  }
+                }
+                // Extract embed URLs and fetch data
                 let embed_urls = @lib.extract_embed_urls(post.content)
                 let embed_data : @hashmap.HashMap[String, @lib.EmbedData] = @hashmap.new()
                 for embed_url in embed_urls {
-                  // Check if it's a YouTube URL
-                  match @lib.parse_youtube_url(embed_url) {
-                    Some(video_id) => {
+                  match @lib.detect_embed_type(embed_url) {
+                    @lib.YouTube(video_id) => {
                       embed_data[embed_url] = @lib.EmbedData::youtube(video_id)
                       continue
                     }
-                    None => ()
+                    // Slide embeds are rendered directly by URL.
+                    @lib.Slide(_) => continue
+                    @lib.Unknown => ()
                   }
                   // Otherwise fetch OGP for card
                   let html = fetch_url(embed_url).wait()

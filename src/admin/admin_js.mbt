@@ -29,7 +29,7 @@ extern "js" fn db_list_posts(
 ) -> @core.Promise[Array[@core.Any]] =
   #| async (db, limit, offset) => {
   #|   const result = await db
-  #|     .prepare("SELECT id, title, slug, excerpt, content, status, published_at, updated_at FROM posts ORDER BY updated_at DESC LIMIT ? OFFSET ?")
+  #|     .prepare("SELECT id, title, slug, excerpt, content, slide_flag, status, published_at, updated_at FROM posts ORDER BY updated_at DESC LIMIT ? OFFSET ?")
   #|     .bind(limit, offset)
   #|     .all();
   #|   return result.results || [];
@@ -48,7 +48,7 @@ extern "js" fn db_get_post_by_id(
   id : Int,
 ) -> @core.Promise[@core.Any] =
   #| async (db, id) => {
-  #|   return await db.prepare("SELECT id, title, slug, excerpt, content, status, published_at, updated_at FROM posts WHERE id = ?").bind(id).first();
+  #|   return await db.prepare("SELECT id, title, slug, excerpt, content, slide_flag, status, published_at, updated_at FROM posts WHERE id = ?").bind(id).first();
   #| }
 
 ///|
@@ -58,14 +58,15 @@ extern "js" fn db_insert_post(
   slug : String,
   excerpt : String,
   content : String,
+  slide_flag : Int,
   status : String,
   published_at : @core.Any,
   updated_at : String,
 ) -> @core.Promise[Int] =
-  #| async (db, title, slug, excerpt, content, status, published_at, updated_at) => {
+  #| async (db, title, slug, excerpt, content, slideFlag, status, published_at, updated_at) => {
   #|   const result = await db
-  #|     .prepare("INSERT INTO posts (title, slug, excerpt, content, status, published_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-  #|     .bind(title, slug, excerpt, content, status, published_at, updated_at)
+  #|     .prepare("INSERT INTO posts (title, slug, excerpt, content, slide_flag, status, published_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+  #|     .bind(title, slug, excerpt, content, slideFlag, status, published_at, updated_at)
   #|     .run();
   #|   return (result.meta && result.meta.last_row_id) ? result.meta.last_row_id : 0;
   #| }
@@ -78,12 +79,13 @@ extern "js" fn db_update_post(
   slug : String,
   excerpt : String,
   content : String,
+  slide_flag : Int,
   updated_at : String,
 ) -> @core.Promise[Unit] =
-  #| async (db, id, title, slug, excerpt, content, updated_at) => {
+  #| async (db, id, title, slug, excerpt, content, slideFlag, updated_at) => {
   #|   await db
-  #|     .prepare("UPDATE posts SET title = ?, slug = ?, excerpt = ?, content = ?, updated_at = ? WHERE id = ?")
-  #|     .bind(title, slug, excerpt, content, updated_at, id)
+  #|     .prepare("UPDATE posts SET title = ?, slug = ?, excerpt = ?, content = ?, slide_flag = ?, updated_at = ? WHERE id = ?")
+  #|     .bind(title, slug, excerpt, content, slideFlag, updated_at, id)
   #|     .run();
   #| }
 

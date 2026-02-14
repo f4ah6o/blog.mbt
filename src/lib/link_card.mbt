@@ -106,9 +106,7 @@ fn parse_google_slides_embed_url(url : String) -> String? {
       if deck_id.length() == 0 {
         None
       } else if is_published {
-        Some(
-          "https://docs.google.com/presentation/d/e/" + deck_id + "/embed",
-        )
+        Some("https://docs.google.com/presentation/d/e/" + deck_id + "/embed")
       } else {
         Some("https://docs.google.com/presentation/d/" + deck_id + "/embed")
       }
@@ -118,8 +116,73 @@ fn parse_google_slides_embed_url(url : String) -> String? {
 }
 
 ///|
+fn append_embed_mode_query(url : String) -> String {
+  if url.contains("embed="[:]) {
+    return url
+  }
+  match url.find("#"[:]) {
+    Some(hash_pos) => {
+      let base = (try! url[:hash_pos]).to_string()
+      let hash = (try! url[hash_pos:]).to_string()
+      let sep = if base.contains("?"[:]) { "&" } else { "?" }
+      base + sep + "embed=1" + hash
+    }
+    None => {
+      let sep = if url.contains("?"[:]) { "&" } else { "?" }
+      url + sep + "embed=1"
+    }
+  }
+}
+
+///|
+fn extract_url_path(url : String) -> String? {
+  let trimmed = url.trim().to_string()
+  if trimmed.has_prefix("/"[:]) {
+    return Some(trimmed)
+  }
+  let scheme_len = if trimmed.has_prefix("https://"[:]) {
+    8
+  } else if trimmed.has_prefix("http://"[:]) {
+    7
+  } else {
+    return None
+  }
+  let rest_view = try! trimmed[scheme_len:]
+  let rest = rest_view.to_string()
+  match rest.find("/"[:]) {
+    Some(pos) => Some((try! trimmed[scheme_len + pos:]).to_string())
+    None => None
+  }
+}
+
+///|
+fn parse_internal_post_slide_url(url : String) -> String? {
+  let trimmed = url.trim().to_string()
+  let path = match extract_url_path(trimmed) {
+    Some(v) => v
+    None => return None
+  }
+  if !path.has_prefix("/posts/"[:]) {
+    return None
+  }
+  let slug_view = try! path[7:]
+  let slug = extract_until_delimiter(slug_view)
+  if slug.length() == 0 {
+    return None
+  }
+  if slug.has_suffix(".md"[:]) {
+    return None
+  }
+  Some(append_embed_mode_query(trimmed))
+}
+
+///|
 fn parse_slide_url(url : String) -> String? {
   let trimmed = url.trim().to_string()
+  match parse_internal_post_slide_url(trimmed) {
+    Some(embed_url) => return Some(embed_url)
+    None => ()
+  }
   if !trimmed.has_prefix("http://"[:]) && !trimmed.has_prefix("https://"[:]) {
     return None
   }
@@ -135,8 +198,7 @@ fn parse_slide_url(url : String) -> String? {
   if trimmed.contains("slideshare.net/slideshow/embed_code/"[:]) {
     return Some(trimmed)
   }
-  if trimmed.contains("docswell.com/slide/"[:]) &&
-    trimmed.contains("/embed"[:]) {
+  if trimmed.contains("docswell.com/slide/"[:]) && trimmed.contains("/embed"[:]) {
     return Some(trimmed)
   }
   None

@@ -23,12 +23,13 @@ fn row_to_admin_post(row : @core.Any) -> AdminPost {
   let slug : String = row["slug"].cast()
   let excerpt = any_string_or_empty(row["excerpt"])
   let content : String = row["content"].cast()
+  let slide_flag = @cloudflare.js_number_to_int(row["slide_flag"]) == 1
   let status_raw = any_string_or_empty(row["status"])
   let status = post_status_from_string(status_raw)
   let published_at = any_string_optional(row["published_at"])
   let updated_at : String = row["updated_at"].cast()
   AdminPost::new(
-    id, title, slug, excerpt, content, status, published_at, updated_at,
+    id, title, slug, excerpt, content, slide_flag, status, published_at, updated_at,
   )
 }
 
@@ -76,6 +77,7 @@ pub async fn insert_post(
   slug : String,
   excerpt : String,
   content : String,
+  slide_flag : Bool,
   updated_at : String,
 ) -> Int {
   db_insert_post(
@@ -84,6 +86,11 @@ pub async fn insert_post(
     slug,
     excerpt,
     content,
+    if slide_flag {
+      1
+    } else {
+      0
+    },
     "draft",
     @core.null(),
     updated_at,
@@ -98,9 +105,23 @@ pub async fn update_post(
   slug : String,
   excerpt : String,
   content : String,
+  slide_flag : Bool,
   updated_at : String,
 ) -> Unit {
-  db_update_post(db, id, title, slug, excerpt, content, updated_at).wait()
+  db_update_post(
+    db,
+    id,
+    title,
+    slug,
+    excerpt,
+    content,
+    if slide_flag {
+      1
+    } else {
+      0
+    },
+    updated_at,
+  ).wait()
 }
 
 ///|

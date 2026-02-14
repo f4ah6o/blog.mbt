@@ -10,10 +10,11 @@ fn row_to_post(row : @core.Any) -> @models.BlogPost {
     excerpt_raw.cast()
   }
   let content : String = row["content"].cast()
+  let slide_flag = @cloudflare.js_number_to_int(row["slide_flag"]) == 1
   let published_at : String = row["published_at"].cast()
   let updated_at : String = row["updated_at"].cast()
   @models.BlogPost::new(
-    id, title, slug, excerpt, content, published_at, updated_at,
+    id, title, slug, excerpt, content, slide_flag, published_at, updated_at,
   )
 }
 

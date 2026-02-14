@@ -49,3 +49,38 @@ Docswell:
 Google Slides:
 [!embed](https://docs.google.com/presentation/d/1NTk3YAo_V2XQp-mkI1Xl3SAAOY1pYuhY3BQj0wR4FMw/preview?slide=id.p)',
    'published', '2026-01-30T11:00:00Z', '2026-01-30T11:00:00Z');
+
+INSERT INTO posts (
+  title,
+  slug,
+  excerpt,
+  content,
+  slide_flag,
+  status,
+  published_at,
+  updated_at
+)
+VALUES (
+  'SVG Slide Demo',
+  'svg-slide-demo',
+  'Slide rendering with front matter theme',
+  '---
+slide_theme: sunrise
+---
+
+## Welcome
+- This post renders as SVG slides.
+- Theme is selected via front matter.
+
+## Separation
+- Content stays in markdown.
+- Layout/theme is resolved by renderer.
+
+## Navigation
+- Use keyboard arrows.
+- URL hash (#2) jumps to slide.',
+  1,
+  'published',
+  '2026-01-30T12:00:00Z',
+  '2026-01-30T12:00:00Z'
+);

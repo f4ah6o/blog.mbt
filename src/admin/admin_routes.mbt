@@ -295,7 +295,7 @@ async fn handle_protected_get(
     segments[0] == "admin" &&
     segments[1] == "posts" &&
     segments[2] == "new" {
-    return html_response(render_post_new("", "", "", "", []), 200)
+    return html_response(render_post_new("", "", "", "", false, []), 200)
   }
   if segments.length() == 4 &&
     segments[0] == "admin" &&
@@ -353,15 +353,20 @@ async fn handle_protected_post(
     let slug = form_value(form, "slug")
     let excerpt = form_value(form, "excerpt")
     let content = form_value(form, "content")
+    let slide_flag = form_checked(form, "slide_flag")
     let errors = validate_post_form(title, slug)
+    match @lib.validate_slide_markdown(content) {
+      Some(msg) if slide_flag => errors.push(msg)
+      _ => ()
+    }
     if errors.length() > 0 {
       return html_response(
-        render_post_new(title, slug, excerpt, content, errors),
+        render_post_new(title, slug, excerpt, content, slide_flag, errors),
         400,
       )
     }
     let now = now_iso()
-    let new_id = insert_post(db, title, slug, excerpt, content, now) catch {
+    let new_id = insert_post(db, title, slug, excerpt, content, slide_flag, now) catch {
       _ =>
         return html_response(
           render_error_page("Database Error", "Failed to create post."),
@@ -384,7 +389,12 @@ async fn handle_protected_post(
         let slug = form_value(form, "slug")
         let excerpt = form_value(form, "excerpt")
         let content = form_value(form, "content")
+        let slide_flag = form_checked(form, "slide_flag")
         let errors = validate_post_form(title, slug)
+        match @lib.validate_slide_markdown(content) {
+          Some(msg) if slide_flag => errors.push(msg)
+          _ => ()
+        }
         if errors.length() > 0 {
           let post_opt : AdminPost? = get_post_by_id(db, id) catch {
             _ =>
@@ -401,6 +411,7 @@ async fn handle_protected_post(
                 slug,
                 excerpt,
                 content,
+                slide_flag,
                 post.status,
                 post.published_at,
                 post.updated_at,
@@ -411,7 +422,7 @@ async fn handle_protected_post(
           }
         }
         let now = now_iso()
-        update_post(db, id, title, slug, excerpt, content, now) catch {
+        update_post(db, id, title, slug, excerpt, content, slide_flag, now) catch {
           _ =>
             return html_response(
               render_error_page("Database Error", "Failed to update post."),

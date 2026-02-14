@@ -36,6 +36,7 @@ pub struct AdminPost {
   slug : String
   excerpt : String
   content : String
+  slide_flag : Bool
   status : PostStatus
   published_at : String?
   updated_at : String
@@ -48,9 +49,20 @@ pub fn AdminPost::new(
   slug : String,
   excerpt : String,
   content : String,
+  slide_flag : Bool,
   status : PostStatus,
   published_at : String?,
   updated_at : String,
 ) -> AdminPost {
-  { id, title, slug, excerpt, content, status, published_at, updated_at }
+  {
+    id,
+    title,
+    slug,
+    excerpt,
+    content,
+    slide_flag,
+    status,
+    published_at,
+    updated_at,
+  }
 }

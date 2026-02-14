@@ -7,6 +7,8 @@ import {
 }
 
 // Values
+pub fn available_slide_themes() -> Array[String]
+
 pub fn detect_embed_type(String) -> EmbedType
 
 pub fn extract_embed_urls(String) -> Array[String]
@@ -14,6 +16,10 @@ pub fn extract_embed_urls(String) -> Array[String]
 pub fn ogp_to_link_card(OgpData, String) -> LinkCard
 
 pub fn parse_ogp_from_html(String) -> OgpData
+
+pub fn parse_slide_front_matter(String) -> Result[SlideSource, String]
+
+pub fn parse_slides(String, fallback_title? : String) -> Array[SlideContent]
 
 pub fn parse_youtube_url(String) -> String?
 
@@ -24,6 +30,12 @@ pub fn render_link_card(LinkCard) -> @tmpx.Node
 pub fn render_markdown(String) -> @tmpx.Node
 
 pub fn render_markdown_with_embeds(String, @hashmap.HashMap[String, EmbedData]) -> @tmpx.Node
+
+pub fn render_slide_deck_page(String, String, String, embed_mode? : Bool) -> Result[String, String]
+
+pub fn render_svg_slides(String, String, String) -> Result[Array[String], String]
+
+pub fn validate_slide_markdown(String) -> String?
 
 // Errors
 
@@ -60,6 +72,21 @@ pub struct OgpData {
 }
 pub fn OgpData::empty() -> Self
 
+pub struct SlideContent {
+  title : String
+  lines : Array[String]
+}
+pub impl Eq for SlideContent
+pub impl Show for SlideContent
+
+pub struct SlideSource {
+  slide_theme : String
+  body : String
+}
+pub impl Eq for SlideSource
+pub impl Show for SlideSource
+
 // Type aliases
 
 // Traits
+

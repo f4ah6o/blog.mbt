@@ -1,0 +1,175 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "f4ah6o/blog.mbt/tmpx_compat"
+
+import {
+  "f4ah6o/tmpx/tmpx",
+}
+
+// Values
+pub fn a(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn action(String) -> @tmpx.Attr
+
+pub fn alt(String) -> @tmpx.Attr
+
+pub fn article(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn attr(String, String) -> @tmpx.Attr
+
+pub fn body(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn bool_attr(String) -> @tmpx.Attr
+
+pub fn button(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn charset(String) -> @tmpx.Attr
+
+pub fn class_(String) -> @tmpx.Attr
+
+pub fn class_list(Array[String]) -> @tmpx.Attr
+
+pub fn code(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn content(String) -> @tmpx.Attr
+
+pub fn data_attr(String, String) -> @tmpx.Attr
+
+pub fn disabled() -> @tmpx.Attr
+
+pub fn div(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn em(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn footer(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn for_(String) -> @tmpx.Attr
+
+pub fn form(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn fragment(Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn h1(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn h2(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn h3(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn h4(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn h5(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn h6(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn head(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn header_(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn href(String) -> @tmpx.Attr
+
+pub fn html_(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn id_(String) -> @tmpx.Attr
+
+pub fn iframe(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn img(Array[@tmpx.Attr]) -> @tmpx.Node
+
+pub fn inner_html() -> @tmpx.MxSwap
+
+pub fn input_(Array[@tmpx.Attr]) -> @tmpx.Node
+
+pub fn label(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn lang_attr(String) -> @tmpx.Attr
+
+pub fn li(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn link(Array[@tmpx.Attr]) -> @tmpx.Node
+
+pub fn main_(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn meta(Array[@tmpx.Attr]) -> @tmpx.Node
+
+pub fn method_(String) -> @tmpx.Attr
+
+pub fn mx_get(String) -> @tmpx.Attr
+
+pub fn mx_post(String) -> @tmpx.Attr
+
+pub fn mx_push_url_custom(String) -> @tmpx.Attr
+
+pub fn mx_swap(@tmpx.MxSwap) -> @tmpx.Attr
+
+pub fn mx_target(String) -> @tmpx.Attr
+
+pub fn mx_trigger(String) -> @tmpx.Attr
+
+pub fn name_(String) -> @tmpx.Attr
+
+pub fn nav(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn ol(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn p(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn placeholder(String) -> @tmpx.Attr
+
+pub fn pre(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn raw_html(String) -> @tmpx.Node
+
+pub fn rel(String) -> @tmpx.Attr
+
+pub fn render(@tmpx.Node) -> String
+
+pub fn script(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn section(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn span(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn src(String) -> @tmpx.Attr
+
+pub fn strong(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn table(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn tbody(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn td(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn text(String) -> @tmpx.Node
+
+pub fn textarea(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn th(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn thead(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn time(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn title(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn tr(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn type_(String) -> @tmpx.Attr
+
+pub fn ul(Array[@tmpx.Attr], Array[@tmpx.Node]) -> @tmpx.Node
+
+pub fn value_(String) -> @tmpx.Attr
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+pub using @tmpx {type Attr}
+
+pub using @tmpx {type MxSwap}
+
+pub using @tmpx {type Node}
+
+pub using @tmpx {type Part}
+
+// Traits
+

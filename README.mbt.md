@@ -31,7 +31,7 @@ just test-update  # スナップショットテストを更新
 
 ```bash
 just init-db      # ローカル D1 データベースを初期化（schema.sql 適用）
-just migrate-db   # ローカル DB を v0.2 スキーマにマイグレーション
+just migrate-db   # ローカル DB を v0.3 スキーマにマイグレーション
 just seed-db      # シードデータを投入
 ```
 
@@ -182,15 +182,13 @@ ADMIN_SETUP_TOKEN # 初回登録用トークン（使い捨て）
 
 ## マイグレーション
 
-### v0.2 スキーマ変更点
+### v0.3 スキーマ変更点
 
-- `status` カラムの追加（draft/published）
-- `published_at` を NULL 可能に変更
-- `updated_at` の適切な運用
+- `slide_flag` カラムの追加（0: 通常記事, 1: SVG スライド）
 
 ### マイグレーション手順
 
-既存の DB がある場合は `migrate_admin_v02.sql` を適用してください。
+既存の DB がある場合は `migrate_admin_v03.sql` を適用してください。
 
 ```bash
 # ローカル
@@ -200,10 +198,7 @@ just migrate-db
 just deploy-migrate-db
 ```
 
-マイグレーションでは既存データは以下のように変換されます：
-- `published_at` に値があった場合 → `status: published`
-- `published_at` が空の場合 → `status: draft`
-- `updated_at` が空の場合 → 現在時刻をセット
+マイグレーションでは既存データの `slide_flag` が `0` で初期化されます。
 
 ## 本番デプロイ時の DB
 
@@ -213,7 +208,7 @@ just deploy-migrate-db
 # 本番 DB 初期化
 just deploy-db
 
-# マイグレーション（v0.2 以降）
+# マイグレーション（v0.3 以降）
 just deploy-migrate-db
 ```
 
@@ -227,8 +222,8 @@ just deploy-migrate-db
 
 ```bash
 npx wrangler d1 execute blog-db --local --command \
-  "INSERT INTO posts (title, slug, excerpt, content, status, published_at, updated_at)
-   VALUES ('My Post', 'my-post', 'short excerpt', 'full content', 'published',
+  "INSERT INTO posts (title, slug, excerpt, content, slide_flag, status, published_at, updated_at)
+   VALUES ('My Post', 'my-post', 'short excerpt', 'full content', 0, 'published',
            datetime('now'), datetime('now'));"
 ```
 

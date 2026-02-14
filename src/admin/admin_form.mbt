@@ -50,3 +50,14 @@ fn form_value(form : Map[String, String], key : String) -> String {
     None => ""
   }
 }
+
+///|
+fn form_checked(form : Map[String, String], key : String) -> Bool {
+  match form.get(key) {
+    Some(value) => {
+      let normalized = value.trim().to_lower()
+      normalized != "0" && normalized != "false" && normalized != "off"
+    }
+    None => false
+  }
+}

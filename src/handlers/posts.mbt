@@ -52,10 +52,11 @@ fn row_to_post(row : @core.Any) -> @models.BlogPost {
     excerpt_raw.cast()
   }
   let content : String = row["content"].cast()
+  let slide_flag = @cloudflare.js_number_to_int(row["slide_flag"]) == 1
   let published_at : String = row["published_at"].cast()
   let updated_at : String = row["updated_at"].cast()
   @models.BlogPost::new(
-    id, title, slug, excerpt, content, published_at, updated_at,
+    id, title, slug, excerpt, content, slide_flag, published_at, updated_at,
   )
 }
 
@@ -180,6 +181,17 @@ pub async fn handle_post_detail(
   match row {
     Some(r) => {
       let post = row_to_post(r)
+      if post.slide_flag {
+        return match
+          @lib.render_slide_deck_page(post.title, post.slug, post.content) {
+          Ok(html) => @http.Response::html(html, 200)
+          Err(msg) =>
+            @http.Response::html(
+              @templates.error_layout("Slide Render Error", msg),
+              500,
+            )
+        }
+      }
       let content = @templates.post_detail_content(post)
       let description = if post.excerpt.is_empty() {
         @config.SITE_DESCRIPTION

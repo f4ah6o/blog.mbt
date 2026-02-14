@@ -1,4 +1,5 @@
 import {
+  "f4ah6o/blog.mbt/lib",
   "mizchi/cloudflare" @cloudflare,
   "mizchi/js/core" @core,
   "mizchi/js/web/http" @http,

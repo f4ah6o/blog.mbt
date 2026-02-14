@@ -81,7 +81,7 @@ fn render_blocks_with_embeds(
               Some(CardData(card)) => render_link_card(card)
               None => render_embed(Unknown, url)
             }
-          }
+        }
         nodes.push(node)
         i = i + 1
         continue
@@ -529,10 +529,7 @@ fn parse_image(rest : StringView) -> (@tmpx.Node, StringView)? {
           match sanitize_image_src(url_view.to_string()) {
             Some(src) => {
               let alt = alt_view.to_string()
-              Some((
-                @tmpx.img([@tmpx.src(src), @tmpx.attr("alt", alt)]),
-                after,
-              ))
+              Some((@tmpx.img([@tmpx.src(src), @tmpx.attr("alt", alt)]), after))
             }
             None => None
           }

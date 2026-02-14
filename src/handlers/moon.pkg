@@ -1,5 +1,6 @@
 import {
   "f4ah6o/blog.mbt/config",
+  "f4ah6o/blog.mbt/lib",
   "f4ah6o/blog.mbt/models",
   "f4ah6o/blog.mbt/templates",
   "mizchi/cloudflare",

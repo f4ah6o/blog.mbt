@@ -45,9 +45,9 @@ build: gen-config
 init-db:
     npx wrangler d1 execute blog-db --local --file=schema.sql
 
-# Migrate local D1 database to admin v0.2 schema
+# Migrate local D1 database to admin v0.3 schema
 migrate-db:
-    npx wrangler d1 execute blog-db --local --file=migrate_admin_v02.sql
+    npx wrangler d1 execute blog-db --local --file=migrate_admin_v03.sql
 
 # Seed local D1 database
 seed-db:
@@ -77,6 +77,6 @@ deploy-local: build
 deploy-db:
     npx wrangler d1 execute blog-db --remote --file=schema.sql
 
-# Migrate remote D1 database to admin v0.2 schema
+# Migrate remote D1 database to admin v0.3 schema
 deploy-migrate-db:
-    npx wrangler d1 execute blog-db --remote --file=migrate_admin_v02.sql
+    npx wrangler d1 execute blog-db --remote --file=migrate_admin_v03.sql

@@ -61,8 +61,24 @@ fn render_post_form(
   slug : String,
   excerpt : String,
   content : String,
+  slide_flag : Bool,
   errors : Array[String],
 ) -> @tmpx.Node {
+  let slide_toggle_html = if slide_flag {
+    (
+      #|<label style="display:flex;gap:8px;align-items:center;margin:12px 0 6px;">
+      #|  <input type="checkbox" name="slide_flag" value="1" checked />
+      #|  Render this post as SVG slide deck
+      #|</label>
+    )
+  } else {
+    (
+      #|<label style="display:flex;gap:8px;align-items:center;margin:12px 0 6px;">
+      #|  <input type="checkbox" name="slide_flag" value="1" />
+      #|  Render this post as SVG slide deck
+      #|</label>
+    )
+  }
   @tmpx.fragment([
     @tmpx.h1([], [@tmpx.text(heading)]),
     render_errors(errors),
@@ -85,6 +101,15 @@ fn render_post_form(
       @tmpx.textarea([@tmpx.name_("excerpt")], [@tmpx.text(excerpt)]),
       @tmpx.label([], [@tmpx.text("Content")]),
       @tmpx.textarea([@tmpx.name_("content")], [@tmpx.text(content)]),
+      @tmpx.raw_html(slide_toggle_html),
+      @tmpx.p([], [
+        @tmpx.text("Slide posts require front matter at the top, for example:"),
+      ]),
+      @tmpx.pre([], [
+        @tmpx.text(
+          "---\nslide_theme: classic  # classic | sunrise | ocean\n---\n\n## Slide 1\n- Point A\n\n## Slide 2\n- Point B",
+        ),
+      ]),
       @tmpx.div([@tmpx.class_("actions")], [
         @tmpx.button([@tmpx.class_("primary"), @tmpx.type_("submit")], [
           @tmpx.text(submit_label),
@@ -113,6 +138,11 @@ fn render_post_list(posts : Array[AdminPost]) -> String {
         @tmpx.td([], [
           @tmpx.strong([], [@tmpx.text(post.title)]),
           @tmpx.div([], [@tmpx.text(post.slug)]),
+          if post.slide_flag {
+            @tmpx.span([@tmpx.class_("badge")], [@tmpx.text("Slide")])
+          } else {
+            @tmpx.fragment([])
+          },
         ]),
         @tmpx.td([], [
           @tmpx.span([@tmpx.class_("badge " + status_class)], [
@@ -212,12 +242,14 @@ fn render_post_new(
   slug : String,
   excerpt : String,
   content : String,
+  slide_flag : Bool,
   errors : Array[String],
 ) -> String {
   admin_layout(
     "New Post",
     render_post_form(
-      "New Post", "/admin/posts", "Create", title, slug, excerpt, content, errors,
+      "New Post", "/admin/posts", "Create", title, slug, excerpt, content, slide_flag,
+      errors,
     ),
   )
 }
@@ -242,6 +274,8 @@ fn render_post_edit(post : AdminPost, errors : Array[String]) -> String {
         @tmpx.strong([], [@tmpx.text(status_label)]),
         @tmpx.text(" | Published: "),
         @tmpx.text(published_label),
+        @tmpx.text(" | Mode: "),
+        @tmpx.text(if post.slide_flag { "Slide" } else { "Article" }),
       ]),
       render_post_form(
         "Edit Post",
@@ -251,6 +285,7 @@ fn render_post_edit(post : AdminPost, errors : Array[String]) -> String {
         post.slug,
         post.excerpt,
         post.content,
+        post.slide_flag,
         errors,
       ),
       @tmpx.div([@tmpx.class_("actions")], [
@@ -313,8 +348,22 @@ fn render_preview(post : AdminPost) -> String {
         @tmpx.div([@tmpx.class_("meta")], [
           @tmpx.text("Status: "),
           @tmpx.text(post_status_label(post.status)),
+          @tmpx.text(" | Mode: "),
+          @tmpx.text(if post.slide_flag { "Slide" } else { "Article" }),
         ]),
-        @tmpx.section([], [@tmpx.raw_html(post.content)]),
+        if post.slide_flag {
+          @tmpx.section([], [
+            @tmpx.p([], [
+              @tmpx.text("Slide mode preview is available on the public URL:"),
+            ]),
+            @tmpx.a([@tmpx.href("/posts/" + post.slug)], [
+              @tmpx.text("/posts/" + post.slug),
+            ]),
+            @tmpx.pre([], [@tmpx.text(post.content)]),
+          ])
+        } else {
+          @tmpx.section([], [@tmpx.raw_html(post.content)])
+        },
       ]),
     ]),
   )

@@ -19,7 +19,7 @@ pub async fn get_post_by_id(@core.Any, Int) -> AdminPost?
 
 pub async fn handle_admin_request(@cloudflare.CloudflareRequest, @cloudflare.CloudflareEnv, @cloudflare.CloudflareContext) -> @http.Response?
 
-pub async fn insert_post(@core.Any, String, String, String, String, String) -> Int
+pub async fn insert_post(@core.Any, String, String, String, String, Bool, String) -> Int
 
 pub async fn list_posts(@core.Any, Int, Int) -> Array[AdminPost]
 
@@ -35,7 +35,7 @@ pub async fn require_auth(@http.Request, @cloudflare.CloudflareEnv, String) -> R
 
 pub async fn set_status(@core.Any, Int, PostStatus, String?, String) -> Unit
 
-pub async fn update_post(@core.Any, Int, String, String, String, String, String) -> Unit
+pub async fn update_post(@core.Any, Int, String, String, String, String, Bool, String) -> Unit
 
 // Errors
 
@@ -46,11 +46,12 @@ pub struct AdminPost {
   slug : String
   excerpt : String
   content : String
+  slide_flag : Bool
   status : PostStatus
   published_at : String?
   updated_at : String
 }
-pub fn AdminPost::new(Int, String, String, String, String, PostStatus, String?, String) -> Self
+pub fn AdminPost::new(Int, String, String, String, String, Bool, PostStatus, String?, String) -> Self
 pub impl Show for AdminPost
 
 type AuthOptionsResponse
