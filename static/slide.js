@@ -7,9 +7,17 @@
   const prevButton = document.querySelector("[data-slide-prev]");
   const nextButton = document.querySelector("[data-slide-next]");
   const fullscreenButton = document.querySelector("[data-slide-fullscreen]");
+  const textDecButton = document.querySelector("[data-text-dec]");
+  const textIncButton = document.querySelector("[data-text-inc]");
+  const textResetButton = document.querySelector("[data-text-reset]");
+  const textScaleLabel = document.querySelector("[data-text-scale]");
 
   const total = frames.length;
   if (total === 0) return;
+  const minTextScale = 80;
+  const maxTextScale = 140;
+  const textScaleStep = 10;
+  let textScale = 100;
 
   function normalizeHash(hash) {
     if (!hash || hash.length <= 1) return 0;
@@ -50,6 +58,47 @@
     syncHash();
   }
 
+  function applyTextScale() {
+    frames.forEach((frame) => {
+      const svg = frame.querySelector("svg");
+      if (!svg) return;
+      const texts = svg.querySelectorAll("text");
+      texts.forEach((node) => {
+        const baseValue = node.dataset.baseFontSize ?? node.getAttribute("font-size");
+        const base = Number.parseFloat(baseValue ?? "");
+        if (!Number.isFinite(base) || base <= 0) return;
+        if (!node.dataset.baseFontSize) {
+          node.dataset.baseFontSize = `${base}`;
+        }
+        const scaled = Math.max(1, Math.round((base * textScale) / 100));
+        node.setAttribute("font-size", `${scaled}`);
+      });
+    });
+  }
+
+  function renderTextScale() {
+    if (textScaleLabel) {
+      textScaleLabel.textContent = `${textScale}%`;
+    }
+    if (textDecButton) {
+      textDecButton.disabled = textScale <= minTextScale;
+    }
+    if (textIncButton) {
+      textIncButton.disabled = textScale >= maxTextScale;
+    }
+  }
+
+  function setTextScale(nextScale) {
+    const clamped = Math.min(maxTextScale, Math.max(minTextScale, nextScale));
+    if (clamped === textScale) {
+      renderTextScale();
+      return;
+    }
+    textScale = clamped;
+    applyTextScale();
+    renderTextScale();
+  }
+
   function step(delta) {
     const next = index + delta;
     if (next < 0 || next >= total) return;
@@ -59,6 +108,15 @@
 
   prevButton?.addEventListener("click", () => step(-1));
   nextButton?.addEventListener("click", () => step(1));
+  textDecButton?.addEventListener("click", () => {
+    setTextScale(textScale - textScaleStep);
+  });
+  textIncButton?.addEventListener("click", () => {
+    setTextScale(textScale + textScaleStep);
+  });
+  textResetButton?.addEventListener("click", () => {
+    setTextScale(100);
+  });
 
   function updateFullscreenLabel() {
     if (!fullscreenButton) return;
@@ -104,6 +162,8 @@
     render();
   });
 
+  applyTextScale();
+  renderTextScale();
   updateFullscreenLabel();
   render();
 })();

@@ -350,6 +350,227 @@ fn wrap_text(text : String, max_chars : Int) -> Array[String] {
 }
 
 ///|
+priv struct RenderLine {
+  is_blank : Bool
+  is_bullet : Bool
+  text : String
+}
+
+///|
+priv struct SlideLayout {
+  title_size : Int
+  body_size : Int
+  line_height : Int
+  lines : Array[RenderLine]
+}
+
+///|
+fn clamp_int(value : Int, min_value : Int, max_value : Int) -> Int {
+  if value < min_value {
+    min_value
+  } else if value > max_value {
+    max_value
+  } else {
+    value
+  }
+}
+
+///|
+fn body_size_candidates(min_size : Int, max_size : Int) -> Array[Int] {
+  let values : Array[Int] = []
+  let mut size = max_size
+  while size >= min_size {
+    values.push(size)
+    size = size - 2
+  }
+  values
+}
+
+///|
+fn compute_wrap_chars(theme : SlideTheme, body_size : Int) -> Int {
+  let wrap_chars = 56 * theme.body_size / body_size
+  if wrap_chars < 16 {
+    16
+  } else {
+    wrap_chars
+  }
+}
+
+///|
+fn compute_title_size(theme : SlideTheme, body_size : Int) -> Int {
+  let scaled = theme.title_size * body_size / theme.body_size
+  clamp_int(scaled, 40, theme.title_size)
+}
+
+///|
+fn compute_line_height(theme : SlideTheme, body_size : Int) -> Int {
+  let scaled = theme.line_height * body_size / theme.body_size
+  let minimum = body_size + 10
+  if scaled < minimum {
+    minimum
+  } else {
+    scaled
+  }
+}
+
+///|
+fn render_lines_from_slide(
+  slide : SlideContent,
+  wrap_chars : Int,
+) -> Array[RenderLine] {
+  let lines : Array[RenderLine] = []
+  for raw_line in slide.lines {
+    let trimmed = trim_to_string(raw_line)
+    if trimmed == "" {
+      lines.push({ is_blank: true, is_bullet: false, text: "" })
+      continue
+    }
+
+    let (is_bullet, body_text) = if trimmed.has_prefix("- "[:]) ||
+      trimmed.has_prefix("* "[:]) {
+      (true, trim_to_string((try! trimmed[2:]).to_string()))
+    } else {
+      (false, trimmed)
+    }
+
+    for wrapped in wrap_text(body_text, wrap_chars) {
+      lines.push({ is_blank: false, is_bullet, text: wrapped })
+    }
+  }
+  lines
+}
+
+///|
+fn can_render_all_lines(
+  lines : Array[RenderLine],
+  body_start_y : Int,
+  line_height : Int,
+  bottom_limit : Int,
+) -> Bool {
+  let mut body_y = body_start_y
+  for line in lines {
+    if line.is_blank {
+      body_y = body_y + line_height / 2
+      continue
+    }
+    if body_y >= bottom_limit {
+      return false
+    }
+    body_y = body_y + line_height
+  }
+  true
+}
+
+///|
+fn append_ellipsis(text : String, max_chars : Int) -> String {
+  if max_chars <= 1 {
+    return "…"
+  }
+  let trimmed = trim_to_string(text)
+  if trimmed == "" {
+    return "…"
+  }
+  if trimmed.length() >= max_chars {
+    let keep = max_chars - 1
+    if keep <= 0 {
+      "…"
+    } else {
+      (try! trimmed[:keep]).to_string() + "…"
+    }
+  } else {
+    trimmed + "…"
+  }
+}
+
+///|
+fn truncate_lines_for_height(
+  lines : Array[RenderLine],
+  body_start_y : Int,
+  line_height : Int,
+  bottom_limit : Int,
+  wrap_chars : Int,
+) -> (Array[RenderLine], Bool) {
+  let rendered : Array[RenderLine] = []
+  let mut body_y = body_start_y
+  let mut truncated = false
+
+  for line in lines {
+    if line.is_blank {
+      let next_y = body_y + line_height / 2
+      if next_y >= bottom_limit {
+        truncated = true
+        break
+      }
+      rendered.push(line)
+      body_y = next_y
+      continue
+    }
+
+    if body_y >= bottom_limit {
+      truncated = true
+      break
+    }
+
+    rendered.push(line)
+    body_y = body_y + line_height
+  }
+
+  if !truncated {
+    return (rendered, false)
+  }
+
+  let mut last_text_idx : Int? = None
+  for i = 0; i < rendered.length(); i = i + 1 {
+    if !rendered[i].is_blank {
+      last_text_idx = Some(i)
+    }
+  }
+
+  match last_text_idx {
+    Some(idx) => {
+      let line = rendered[idx]
+      rendered[idx] = {
+        is_blank: false,
+        is_bullet: line.is_bullet,
+        text: append_ellipsis(line.text, wrap_chars),
+      }
+    }
+    None => rendered.push({ is_blank: false, is_bullet: false, text: "…" })
+  }
+
+  (rendered, true)
+}
+
+///|
+fn build_slide_layout(slide : SlideContent, theme : SlideTheme) -> SlideLayout {
+  let min_body_size = 24
+  let max_body_size = 46
+  let bottom_limit = theme.height - 64
+
+  for body_size in body_size_candidates(min_body_size, max_body_size) {
+    let title_size = compute_title_size(theme, body_size)
+    let line_height = compute_line_height(theme, body_size)
+    let wrap_chars = compute_wrap_chars(theme, body_size)
+    let body_start_y = theme.padding_y + title_size + 48
+    let lines = render_lines_from_slide(slide, wrap_chars)
+    if can_render_all_lines(lines, body_start_y, line_height, bottom_limit) {
+      return { title_size, body_size, line_height, lines }
+    }
+  }
+
+  let body_size = min_body_size
+  let title_size = compute_title_size(theme, body_size)
+  let line_height = compute_line_height(theme, body_size)
+  let wrap_chars = compute_wrap_chars(theme, body_size)
+  let body_start_y = theme.padding_y + title_size + 48
+  let lines = render_lines_from_slide(slide, wrap_chars)
+  let (clamped_lines, _) = truncate_lines_for_height(
+    lines, body_start_y, line_height, bottom_limit, wrap_chars,
+  )
+  { title_size, body_size, line_height, lines: clamped_lines }
+}
+
+///|
 fn render_slide_svg(
   slide : SlideContent,
   index : Int,
@@ -358,8 +579,10 @@ fn render_slide_svg(
 ) -> String {
   let sb = StringBuilder::new()
   let title = if slide.title == "" { "Slide" } else { slide.title }
+  let layout = build_slide_layout(slide, theme)
   let body_x = theme.padding_x
-  let mut body_y = theme.padding_y + theme.title_size + 48
+  let mut body_y = theme.padding_y + layout.title_size + 48
+  let bullet_radius = layout.body_size / 6 + 1
 
   sb.write_string(
     "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 " +
@@ -409,7 +632,7 @@ fn render_slide_svg(
     "\" y=\"" +
     theme.padding_y.to_string() +
     "\" font-size=\"" +
-    theme.title_size.to_string() +
+    layout.title_size.to_string() +
     "\" font-weight=\"700\" fill=\"" +
     theme.title_color +
     "\">" +
@@ -417,51 +640,40 @@ fn render_slide_svg(
     "</text>",
   )
 
-  for raw_line in slide.lines {
-    let trimmed = trim_to_string(raw_line)
-    if trimmed == "" {
-      body_y = body_y + theme.line_height / 2
+  for line in layout.lines {
+    if line.is_blank {
+      body_y = body_y + layout.line_height / 2
       continue
     }
 
-    let (is_bullet, body_text) = if trimmed.has_prefix("- "[:]) ||
-      trimmed.has_prefix("* "[:]) {
-      (true, trim_to_string((try! trimmed[2:]).to_string()))
-    } else {
-      (false, trimmed)
-    }
-
-    for wrapped in wrap_text(body_text, 56) {
-      if body_y >= theme.height - 64 {
-        break
-      }
-      let x = if is_bullet { body_x + 24 } else { body_x }
-      if is_bullet {
-        sb.write_string(
-          "<circle cx=\"" +
-          (body_x + 8).to_string() +
-          "\" cy=\"" +
-          (body_y - theme.body_size / 3).to_string() +
-          "\" r=\"6\" fill=\"" +
-          theme.accent +
-          "\"/>",
-        )
-      }
+    let x = if line.is_bullet { body_x + 24 } else { body_x }
+    if line.is_bullet {
       sb.write_string(
-        "<text x=\"" +
-        x.to_string() +
-        "\" y=\"" +
-        body_y.to_string() +
-        "\" font-size=\"" +
-        theme.body_size.to_string() +
+        "<circle data-bullet=\"1\" cx=\"" +
+        (body_x + 8).to_string() +
+        "\" cy=\"" +
+        (body_y - layout.body_size / 3).to_string() +
+        "\" r=\"" +
+        bullet_radius.to_string() +
         "\" fill=\"" +
-        theme.body_color +
-        "\">" +
-        escape_xml(wrapped) +
-        "</text>",
+        theme.accent +
+        "\"/>",
       )
-      body_y = body_y + theme.line_height
     }
+    sb.write_string(
+      "<text x=\"" +
+      x.to_string() +
+      "\" y=\"" +
+      body_y.to_string() +
+      "\" font-size=\"" +
+      layout.body_size.to_string() +
+      "\" fill=\"" +
+      theme.body_color +
+      "\">" +
+      escape_xml(line.text) +
+      "</text>",
+    )
+    body_y = body_y + layout.line_height
   }
 
   sb.write_string(
@@ -597,13 +809,13 @@ pub fn render_slide_deck_page(
     sb.write_string(
       "<footer class=\"slide-embed-footer\"><div class=\"slide-embed-nav\"><button class=\"slide-nav\" type=\"button\" data-slide-prev>◀</button><button class=\"slide-nav\" type=\"button\" data-slide-next>▶</button><span id=\"slide-counter\">1 / " +
       svgs.length().to_string() +
-      "</span></div><button class=\"slide-fullscreen-btn\" type=\"button\" data-slide-fullscreen>Full Screen</button></footer>",
+      "</span></div><div class=\"slide-font-controls\"><button class=\"slide-font-btn\" type=\"button\" data-text-dec>A-</button><span class=\"slide-font-value\" data-text-scale>100%</span><button class=\"slide-font-btn\" type=\"button\" data-text-inc>A+</button><button class=\"slide-font-btn\" type=\"button\" data-text-reset>Reset</button></div><button class=\"slide-fullscreen-btn\" type=\"button\" data-slide-fullscreen>Full Screen</button></footer>",
     )
   } else {
     sb.write_string(
       "<footer class=\"slide-footer\"><span id=\"slide-counter\">1 / " +
       svgs.length().to_string() +
-      "</span><span class=\"slide-shortcut\">Use ← → or URL hash (#3)</span></footer>",
+      "</span><span class=\"slide-shortcut\">Use ← → or URL hash (#3)</span><div class=\"slide-font-controls\"><button class=\"slide-font-btn\" type=\"button\" data-text-dec>A-</button><span class=\"slide-font-value\" data-text-scale>100%</span><button class=\"slide-font-btn\" type=\"button\" data-text-inc>A+</button><button class=\"slide-font-btn\" type=\"button\" data-text-reset>Reset</button></div></footer>",
     )
   }
   sb.write_string("<script src=\"/slide.js\" defer></script>")
