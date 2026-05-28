@@ -1,5 +1,5 @@
 (() => {
-  const viewport = document.querySelector("[data-slide-root]");
+  const viewport = document.querySelector("[data-slide-root]") ?? document.getElementById("slide-viewport");
   if (!viewport) return;
 
   const frames = Array.from(viewport.querySelectorAll(".slide-frame"));
@@ -127,10 +127,16 @@
   async function toggleFullscreen() {
     try {
       if (document.fullscreenElement || document.webkitFullscreenElement) {
-        const exitFullscreen = document.exitFullscreen ?? document.webkitExitFullscreen;
+        const exitFullscreen =
+          typeof document.exitFullscreen === "function"
+            ? document.exitFullscreen
+            : document.webkitExitFullscreen;
         await exitFullscreen?.call(document);
       } else {
-        const requestFullscreen = viewport.requestFullscreen ?? viewport.webkitRequestFullscreen;
+        const requestFullscreen =
+          typeof viewport.requestFullscreen === "function"
+            ? viewport.requestFullscreen
+            : viewport.webkitRequestFullscreen;
         await requestFullscreen?.call(viewport);
       }
     } catch (_) {
