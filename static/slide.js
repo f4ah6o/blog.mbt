@@ -1,5 +1,5 @@
 (() => {
-  const viewport = document.getElementById("slide-viewport");
+  const viewport = document.querySelector("[data-slide-root]") ?? document.getElementById("slide-viewport");
   if (!viewport) return;
 
   const frames = Array.from(viewport.querySelectorAll(".slide-frame"));
@@ -120,16 +120,24 @@
 
   function updateFullscreenLabel() {
     if (!fullscreenButton) return;
-    const active = document.fullscreenElement != null;
+    const active = document.fullscreenElement != null || document.webkitFullscreenElement != null;
     fullscreenButton.textContent = active ? "Exit Full Screen" : "Full Screen";
   }
 
   async function toggleFullscreen() {
     try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        const exitFullscreen =
+          typeof document.exitFullscreen === "function"
+            ? document.exitFullscreen
+            : document.webkitExitFullscreen;
+        await exitFullscreen?.call(document);
       } else {
-        await document.documentElement.requestFullscreen();
+        const requestFullscreen =
+          typeof viewport.requestFullscreen === "function"
+            ? viewport.requestFullscreen
+            : viewport.webkitRequestFullscreen;
+        await requestFullscreen?.call(viewport);
       }
     } catch (_) {
       // Ignore failures (e.g. unsupported env); button label remains current state.
@@ -142,6 +150,9 @@
   });
 
   document.addEventListener("fullscreenchange", () => {
+    updateFullscreenLabel();
+  });
+  document.addEventListener("webkitfullscreenchange", () => {
     updateFullscreenLabel();
   });
 
