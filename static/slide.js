@@ -129,7 +129,7 @@
       if (document.fullscreenElement) {
         await document.exitFullscreen();
       } else {
-        await document.documentElement.requestFullscreen();
+        await viewport.requestFullscreen?.();
       }
     } catch (_) {
       // Ignore failures (e.g. unsupported env); button label remains current state.

@@ -778,7 +778,7 @@ pub fn render_slide_deck_page(
 
   sb.write_string("<main class=\"slide-stage\">")
   sb.write_string(
-    "<section class=\"slide-viewport\" id=\"slide-viewport\" data-total=\"" +
+    "<section class=\"slide-viewport\" id=\"slide-viewport\" data-slide-root data-total=\"" +
     svgs.length().to_string() +
     "\">",
   )
