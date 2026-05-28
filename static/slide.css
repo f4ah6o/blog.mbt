@@ -286,6 +286,10 @@ body.slide-deck-embed {
   background: radial-gradient(circle at 20% 10%, #0b122f 0%, var(--slide-bg) 45%, #020617 100%);
 }
 
+.slide-viewport::backdrop {
+  background: #020617;
+}
+
 .slide-viewport:fullscreen .slide-frame.is-active {
   height: 100%;
 }
