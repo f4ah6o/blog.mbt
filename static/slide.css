@@ -297,10 +297,6 @@ body.slide-deck-embed {
   background: #020617;
 }
 
-.slide-viewport::-webkit-backdrop {
-  background: #020617;
-}
-
 .slide-viewport:fullscreen .slide-frame.is-active {
   height: 100%;
 }
