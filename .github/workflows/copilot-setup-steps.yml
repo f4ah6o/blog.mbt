@@ -31,6 +31,7 @@ jobs:
 
       - name: Set up MoonBit
         run: |
+          # Versioned MoonBit artifacts currently return 403; use latest so setup can install the toolchain.
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh | MOONBIT_INSTALL_VERSION="latest" bash
           echo "$HOME/.moon/bin" >> $GITHUB_PATH
 
