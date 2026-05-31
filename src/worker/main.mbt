@@ -496,14 +496,15 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
                 let embed_urls = @lib.extract_embed_urls(post.content)
                 let embed_data : @hashmap.HashMap[String, @lib.EmbedData] = @hashmap.new()
                 for embed_url in embed_urls {
-                  match @lib.detect_embed_type(embed_url) {
-                    @lib.YouTube(video_id) => {
+                  match @lib.detect_youtube_video_id(embed_url) {
+                    Some(video_id) => {
                       embed_data[embed_url] = @lib.EmbedData::youtube(video_id)
                       continue
                     }
-                    // Slide embeds are rendered directly by URL.
-                    @lib.Slide(_) => continue
-                    @lib.Unknown => ()
+                    None => ()
+                  }
+                  if @lib.is_slide_embed_url(embed_url) {
+                    continue
                   }
                   // Otherwise fetch OGP for card
                   let html = fetch_url(embed_url).wait()

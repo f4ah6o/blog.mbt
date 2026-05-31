@@ -50,13 +50,10 @@ pub struct AdminPost {
   status : PostStatus
   published_at : String?
   updated_at : String
-}
+} derive(Show)
 pub fn AdminPost::new(Int, String, String, String, String, Bool, PostStatus, String?, String) -> Self
-pub impl Show for AdminPost
 
-type AuthOptionsResponse
-pub impl Show for AuthOptionsResponse
-pub impl ToJson for AuthOptionsResponse
+type AuthOptionsResponse derive(Show, ToJson)
 
 pub enum AuthResult {
   Authenticated(String)
@@ -65,56 +62,32 @@ pub enum AuthResult {
   ConfigError(String)
 }
 
-type AuthVerifyRequest
-pub impl Show for AuthVerifyRequest
-pub impl @json.FromJson for AuthVerifyRequest
+type AuthVerifyRequest derive(Show, @json.FromJson)
 
-type AuthenticatorSelectionJS
-pub impl Show for AuthenticatorSelectionJS
+type AuthenticatorSelectionJS derive(Show)
 
-type CredentialDescriptorJS
-pub impl Show for CredentialDescriptorJS
-pub impl @json.FromJson for CredentialDescriptorJS
+type CredentialDescriptorJS derive(Show, @json.FromJson)
 
-type JwtPayload
-pub impl Show for JwtPayload
-pub impl ToJson for JwtPayload
-pub impl @json.FromJson for JwtPayload
+type JwtPayload derive(Show, ToJson, @json.FromJson)
 
 pub enum PostStatus {
   Draft
   Published
-}
-pub impl Eq for PostStatus
-pub impl Show for PostStatus
+} derive(Eq, Show)
 
-type PubKeyCredParamJS
-pub impl Show for PubKeyCredParamJS
+type PubKeyCredParamJS derive(Show)
 
-type RegOptionsResponse
-pub impl Show for RegOptionsResponse
-pub impl ToJson for RegOptionsResponse
+type RegOptionsResponse derive(Show, ToJson)
 
-type RegVerifyRequest
-pub impl Show for RegVerifyRequest
-pub impl @json.FromJson for RegVerifyRequest
+type RegVerifyRequest derive(Show, @json.FromJson)
 
-type RelyingPartyInfoJS
-pub impl Show for RelyingPartyInfoJS
-pub impl ToJson for RelyingPartyInfoJS
+type RelyingPartyInfoJS derive(Show, ToJson)
 
-type StoredChallenge
-pub impl Show for StoredChallenge
-pub impl ToJson for StoredChallenge
-pub impl @json.FromJson for StoredChallenge
+type StoredChallenge derive(Show, ToJson, @json.FromJson)
 
-type StoredCredential
-pub impl Show for StoredCredential
-pub impl ToJson for StoredCredential
-pub impl @json.FromJson for StoredCredential
+type StoredCredential derive(Show, ToJson, @json.FromJson)
 
-type UserInfoJS
-pub impl Show for UserInfoJS
+type UserInfoJS derive(Show)
 
 // Type aliases
 

@@ -15,10 +15,8 @@ pub struct BlogPost {
   slide_flag : Bool
   published_at : String
   updated_at : String
-}
+} derive(Eq, Show)
 pub fn BlogPost::new(Int, String, String, String, String, Bool, String, String) -> Self
-pub impl Eq for BlogPost
-pub impl Show for BlogPost
 
 // Type aliases
 

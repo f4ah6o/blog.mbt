@@ -14,9 +14,15 @@ test "parse slide front matter" {
     #|- hello
     #|
   let parsed = parse_slide_front_matter(content)
+  let expected =
+    #|Ok({slide_theme: sunrise, body: 
+    #|## Slide A
+    #|- hello
+    #|})
+    
   inspect(
     parsed,
-    content="Ok({slide_theme: \"sunrise\", body: \"\\n## Slide A\\n- hello\\n\"})",
+    content=expected,
   )
 }
 
@@ -25,7 +31,7 @@ test "validate slide markdown requires h2" {
   let invalid = "no headings"
   inspect(
     validate_slide_markdown(invalid),
-    content="Some(\"Slide content must contain at least one H2 heading (`## title`).\")",
+    content="Some(Slide content must contain at least one H2 heading (`## title`).)",
   )
 }
 
