@@ -7,7 +7,8 @@
     "mizchi/js": "0.10.14",
     "f4ah6o/tmpx": "0.4.0",
     "f4ah6o/mhx-spec": "0.1.1",
-    "f4ah6o/simple-webauthn": "0.1.0"
+    "f4ah6o/simple-webauthn": "0.1.0",
+    "f4ah6o/papyr": "0.1.0"
   },
   "readme": "README.mbt.md",
   "repository": "",
