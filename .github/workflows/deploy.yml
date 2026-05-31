@@ -1,0 +1,119 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BLOG_D1_DATABASE_ID: ${{ secrets.BLOG_D1_DATABASE_ID }}
+      ADMIN_AUTH_KV_NAMESPACE_ID: ${{ secrets.ADMIN_AUTH_KV_NAMESPACE_ID }}
+      ADMIN_USER_ID: ${{ secrets.ADMIN_USER_ID }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      ADMIN_SETUP_TOKEN: ${{ secrets.ADMIN_SETUP_TOKEN }}
+      RP_ID: ${{ secrets.RP_ID }}
+      RP_ORIGIN: ${{ secrets.RP_ORIGIN }}
+      RP_NAME: ${{ secrets.RP_NAME }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install MoonBit CLI
+        run: |
+          # Versioned MoonBit artifacts currently return 403; use latest so CI can install the toolchain.
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | MOONBIT_INSTALL_VERSION="latest" bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+
+      - name: Moon update
+        run: moon update
+
+      - name: Write blog config
+        run: |
+          mkdir -p config
+          cat > config/blog.toml <<'EOF'
+          site_title = "設計の途中"
+          footer_text = "2026 f12o.com"
+          site_url = "https://blog.f12o.com"
+          site_name = "設計の途中"
+          site_description = "個人ブログ"
+          default_og_image = "/ogp-default.png"
+          EOF
+
+      - name: Build
+        run: |
+          node scripts/gen_config.mjs
+          moon build --target js
+
+      - name: Write Wrangler config
+        run: |
+          for name in CLOUDFLARE_ACCOUNT_ID BLOG_D1_DATABASE_ID ADMIN_AUTH_KV_NAMESPACE_ID RP_ID RP_ORIGIN RP_NAME; do
+            if [ -z "${!name}" ]; then
+              echo "$name is required" >&2
+              exit 1
+            fi
+          done
+
+          cat > wrangler.toml <<EOF
+          name = "blog"
+          main = "fixtures/worker.js"
+          compatibility_date = "2024-12-01"
+          account_id = "${CLOUDFLARE_ACCOUNT_ID}"
+
+          [assets]
+          directory = "./static"
+
+          [[d1_databases]]
+          binding = "BLOG_DB"
+          database_name = "blog-db"
+          database_id = "${BLOG_D1_DATABASE_ID}"
+
+          [[kv_namespaces]]
+          binding = "ADMIN_AUTH"
+          id = "${ADMIN_AUTH_KV_NAMESPACE_ID}"
+
+          [env.production]
+          routes = [
+            { pattern = "blog.f12o.com", zone_name = "f12o.com", custom_domain = true }
+          ]
+
+          [env.production.vars]
+          RP_ID = "${RP_ID}"
+          RP_ORIGIN = "${RP_ORIGIN}"
+          RP_NAME = "${RP_NAME}"
+
+          [[env.production.d1_databases]]
+          binding = "BLOG_DB"
+          database_name = "blog-db"
+          database_id = "${BLOG_D1_DATABASE_ID}"
+
+          [[env.production.kv_namespaces]]
+          binding = "ADMIN_AUTH"
+          id = "${ADMIN_AUTH_KV_NAMESPACE_ID}"
+          EOF
+
+      - name: Upload production secrets
+        run: |
+          for name in ADMIN_USER_ID JWT_SECRET ADMIN_SETUP_TOKEN; do
+            if [ -z "${!name}" ]; then
+              echo "$name is required" >&2
+              exit 1
+            fi
+            printf "%s" "${!name}" | npx --yes wrangler secret put "$name" --env production
+          done
+
+      - name: Deploy production Worker
+        run: npx --yes wrangler deploy fixtures/worker.js --env production
