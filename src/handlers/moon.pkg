@@ -10,6 +10,4 @@ import {
   "mizchi/js/web/url",
 }
 
-options(
-  "supported-targets": [ "js" ],
-)
+supported_targets = "js"

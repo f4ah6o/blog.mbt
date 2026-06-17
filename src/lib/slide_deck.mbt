@@ -2,13 +2,13 @@
 pub struct SlideSource {
   slide_theme : String
   body : String
-} derive(Show, Eq)
+} derive(Debug, Eq)
 
 ///|
 pub struct SlideContent {
   title : String
   lines : Array[String]
-} derive(Show, Eq)
+} derive(Debug, Eq)
 
 ///|
 priv struct SlideTheme {
@@ -89,14 +89,14 @@ fn theme_by_id(theme_id : String) -> SlideTheme? {
 
 ///|
 fn trim_to_string(line : String) -> String {
-  line.trim().to_string()
+  line.trim().to_owned()
 }
 
 ///|
 fn slide_split_lines(content : String) -> Array[String] {
   let lines : Array[String] = []
   for line in content.split("\n") {
-    lines.push(line.to_string())
+    lines.push(line.to_owned())
   }
   lines
 }
@@ -123,8 +123,8 @@ fn parse_front_matter_key_value(line : String) -> (String, String)? {
   let pos = line.find(":"[:])
   match pos {
     Some(idx) => {
-      let key = trim_to_string((try! line[:idx]).to_string()).to_lower()
-      let value = trim_to_string((try! line[idx + 1:]).to_string())
+      let key = trim_to_string(line[:idx].to_owned()).to_lower()
+      let value = trim_to_string(line[idx + 1:].to_owned())
       if key.is_empty() {
         None
       } else {
@@ -191,7 +191,7 @@ pub fn parse_slide_front_matter(
 fn is_h2_heading(line : String) -> String? {
   let trimmed = trim_to_string(line)
   if trimmed.has_prefix("## "[:]) {
-    let title = trim_to_string((try! trimmed[3:]).to_string())
+    let title = trim_to_string(trimmed[3:].to_owned())
     if title == "" {
       None
     } else {
@@ -325,7 +325,7 @@ fn wrap_text(text : String, max_chars : Int) -> Array[String] {
   }
   let words : Array[String] = []
   for word in trimmed.split(" ") {
-    let part = word.to_string()
+    let part = word.to_owned()
     if part != "" {
       words.push(part)
     }
@@ -432,7 +432,7 @@ fn render_lines_from_slide(
 
     let (is_bullet, body_text) = if trimmed.has_prefix("- "[:]) ||
       trimmed.has_prefix("* "[:]) {
-      (true, trim_to_string((try! trimmed[2:]).to_string()))
+      (true, trim_to_string(trimmed[2:].to_owned()))
     } else {
       (false, trimmed)
     }
@@ -479,7 +479,7 @@ fn append_ellipsis(text : String, max_chars : Int) -> String {
     if keep <= 0 {
       "…"
     } else {
-      (try! trimmed[:keep]).to_string() + "…"
+      trimmed[:keep].to_owned() + "…"
     }
   } else {
     trimmed + "…"

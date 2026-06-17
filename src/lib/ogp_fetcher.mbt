@@ -73,8 +73,8 @@ fn extract_meta_content(html : String, property : String) -> String? {
       let meta_start = find_meta_start(html, pos)
       let meta_end = find_tag_end(html, pos)
       if meta_start >= 0 && meta_end > meta_start {
-        let meta_tag = try! html[meta_start:meta_end]
-        return extract_content_attr(meta_tag.to_string())
+        let meta_tag = html[meta_start:meta_end]
+        return extract_content_attr(meta_tag.to_owned())
       }
     }
     None => ()
@@ -85,8 +85,8 @@ fn extract_meta_content(html : String, property : String) -> String? {
       let meta_start = find_meta_start(html, pos)
       let meta_end = find_tag_end(html, pos)
       if meta_start >= 0 && meta_end > meta_start {
-        let meta_tag = try! html[meta_start:meta_end]
-        return extract_content_attr(meta_tag.to_string())
+        let meta_tag = html[meta_start:meta_end]
+        return extract_content_attr(meta_tag.to_owned())
       }
     }
     None => ()
@@ -106,8 +106,8 @@ fn extract_meta_name_content(html : String, name : String) -> String? {
       let meta_start = find_meta_start(html, pos)
       let meta_end = find_tag_end(html, pos)
       if meta_start >= 0 && meta_end > meta_start {
-        let meta_tag = try! html[meta_start:meta_end]
-        return extract_content_attr(meta_tag.to_string())
+        let meta_tag = html[meta_start:meta_end]
+        return extract_content_attr(meta_tag.to_owned())
       }
     }
     None => ()
@@ -117,8 +117,8 @@ fn extract_meta_name_content(html : String, name : String) -> String? {
       let meta_start = find_meta_start(html, pos)
       let meta_end = find_tag_end(html, pos)
       if meta_start >= 0 && meta_end > meta_start {
-        let meta_tag = try! html[meta_start:meta_end]
-        return extract_content_attr(meta_tag.to_string())
+        let meta_tag = html[meta_start:meta_end]
+        return extract_content_attr(meta_tag.to_owned())
       }
     }
     None => ()
@@ -132,10 +132,10 @@ fn extract_title_tag(html : String) -> String? {
   match search.find("<title>"[:]) {
     Some(start) => {
       let content_start = start + 7
-      match (try! search[content_start:]).find("</title>"[:]) {
+      match search[content_start:].find("</title>"[:]) {
         Some(end) => {
-          let title_view = try! html[content_start:content_start + end]
-          Some(decode_html_entities(title_view.to_string()))
+          let title_view = html[content_start:content_start + end]
+          Some(decode_html_entities(title_view.to_owned()))
         }
         None => None
       }
@@ -175,7 +175,7 @@ fn find_tag_end(html : String, pos : Int) -> Int {
 
 ///|
 fn char_at(s : String, index : Int) -> Char {
-  let view = try! s[index:index + 1]
+  let view = s[index:index + 1]
   for ch in view {
     return ch
   }
@@ -189,11 +189,11 @@ fn extract_content_attr(tag : String) -> String? {
   match tag_lower.find("content=\""[:]) {
     Some(start) => {
       let value_start = start + 9
-      let rest = try! tag[value_start:]
+      let rest = tag[value_start:]
       match rest.find("\""[:]) {
         Some(end) => {
-          let value = try! rest[:end]
-          return Some(decode_html_entities(value.to_string()))
+          let value = rest[:end]
+          return Some(decode_html_entities(value.to_owned()))
         }
         None => ()
       }
@@ -203,11 +203,11 @@ fn extract_content_attr(tag : String) -> String? {
   match tag_lower.find("content='"[:]) {
     Some(start) => {
       let value_start = start + 9
-      let rest = try! tag[value_start:]
+      let rest = tag[value_start:]
       match rest.find("'"[:]) {
         Some(end) => {
-          let value = try! rest[:end]
-          return Some(decode_html_entities(value.to_string()))
+          let value = rest[:end]
+          return Some(decode_html_entities(value.to_owned()))
         }
         None => ()
       }

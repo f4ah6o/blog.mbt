@@ -56,7 +56,7 @@ struct CredentialDescriptorJS {
 
 ///|
 /// ToJson impl for CredentialDescriptorJS to use "type" instead of "type_"
-impl ToJson for CredentialDescriptorJS with to_json(self) {
+impl ToJson for CredentialDescriptorJS with fn to_json(self) {
   let obj : Map[String, Json] = {}
   obj["id"] = self.id.to_json()
   obj["type"] = self.type_.to_json()
@@ -81,7 +81,7 @@ struct UserInfoJS {
 
 ///|
 /// ToJson impl for UserInfoJS to use "displayName" instead of "display_name"
-impl ToJson for UserInfoJS with to_json(self) {
+impl ToJson for UserInfoJS with fn to_json(self) {
   let obj : Map[String, Json] = {}
   obj["id"] = self.id.to_json()
   obj["name"] = self.name.to_json()
@@ -98,7 +98,7 @@ struct PubKeyCredParamJS {
 
 ///|
 /// ToJson impl for PubKeyCredParamJS to use "type" instead of "type_"
-impl ToJson for PubKeyCredParamJS with to_json(self) {
+impl ToJson for PubKeyCredParamJS with fn to_json(self) {
   let obj : Map[String, Json] = {}
   obj["type"] = self.type_.to_json()
   obj["alg"] = self.alg.to_json()
@@ -115,7 +115,7 @@ struct AuthenticatorSelectionJS {
 
 ///|
 /// ToJson impl for AuthenticatorSelectionJS with camelCase keys
-impl ToJson for AuthenticatorSelectionJS with to_json(self) {
+impl ToJson for AuthenticatorSelectionJS with fn to_json(self) {
   let obj : Map[String, Json] = {}
   obj["residentKey"] = self.resident_key.to_json()
   obj["userVerification"] = self.user_verification.to_json()

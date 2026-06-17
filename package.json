@@ -1,0 +1,35 @@
+{
+  "name": "blog-mbt",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm exec vp dev",
+    "build": "pnpm exec vp build -c vite.markable.config.ts && moon build --release --target js && pnpm exec vp build",
+    "check": "pnpm exec vp check src/worker-entry.ts src/client/markable.ts src/types.d.ts vite.config.ts vite.markable.config.ts package.json tsconfig.json",
+    "moon:check": "moon check --deny-warn --target js",
+    "moon:test": "moon test --target js",
+    "release-check": "moon fmt && moon info && moon check --deny-warn --target js && moon test --target js && pnpm exec vp build -c vite.markable.config.ts && moon build --release --target js && pnpm exec vp check src/worker-entry.ts src/client/markable.ts src/types.d.ts vite.config.ts vite.markable.config.ts package.json tsconfig.json && pnpm exec vp build"
+  },
+  "dependencies": {
+    "@f12o/markable": "2026.6.1"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.41.0",
+    "@cloudflare/workers-types": "4.20260616.1",
+    "@types/node": "22.15.17",
+    "@voidzero-dev/vite-plus-core": "0.2.0",
+    "typescript": "5.8.3",
+    "vite": "npm:@voidzero-dev/vite-plus-core@0.2.0",
+    "vite-plugin-moonbit": "0.3.0",
+    "vite-plus": "0.2.0",
+    "vitest": "4.1.9",
+    "wrangler": "4.101.0"
+  },
+  "packageManager": "pnpm@10.29.3",
+  "pnpm": {
+    "overrides": {
+      "vite": "npm:@voidzero-dev/vite-plus-core@0.2.0",
+      "vitest": "4.1.9"
+    }
+  }
+}

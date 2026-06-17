@@ -1,11 +1,13 @@
 import {
   "f4ah6o/blog.mbt/lib",
-  "mizchi/cloudflare" @cloudflare,
-  "mizchi/js/core" @core,
-  "mizchi/js/web/http" @http,
-  "moonbitlang/core/strconv" @strconv,
-  "moonbitlang/core/json" @json,
+  "mizchi/cloudflare",
+  "mizchi/js/core",
+  "mizchi/js/web/http",
+  "moonbitlang/core/strconv",
+  "moonbitlang/core/json",
   "f4ah6o/blog.mbt/tmpx_compat" @tmpx,
   "f4ah6o/simple-webauthn/server" @webauthn_server,
   "f4ah6o/simple-webauthn/helpers" @webauthn_helpers,
 }
+
+supported_targets = "js"

@@ -14,13 +14,13 @@ test "parse slide front matter" {
     #|- hello
     #|
   let parsed = parse_slide_front_matter(content)
-  let expected =
-    #|Ok({slide_theme: sunrise, body: 
-    #|## Slide A
-    #|- hello
-    #|})
-
-  inspect(parsed, content=expected)
+  match parsed {
+    Ok(source) => {
+      inspect(source.slide_theme, content="sunrise")
+      inspect(source.body, content="\n## Slide A\n- hello\n")
+    }
+    Err(message) => fail(message)
+  }
 }
 
 ///|
@@ -41,15 +41,13 @@ test "parse OKF front matter tolerates extra keys and block-list tags" {
     #|- hello
     #|
   let parsed = parse_slide_front_matter(content)
-  inspect(
-    parsed,
-    content=(
-      #|Ok({slide_theme: sunrise, body: 
-      #|## Slide A
-      #|- hello
-      #|})
-    ),
-  )
+  match parsed {
+    Ok(source) => {
+      inspect(source.slide_theme, content="sunrise")
+      inspect(source.body, content="\n## Slide A\n- hello\n")
+    }
+    Err(message) => fail(message)
+  }
 }
 
 ///|

@@ -1,6 +1,7 @@
 name = "blog"
-main = "fixtures/worker.js"
+main = "src/worker-entry.ts"
 compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
 
 [assets]
 directory = "./static"

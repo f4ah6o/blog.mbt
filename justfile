@@ -1,8 +1,5 @@
 # MoonBit Blog System Commands
 
-# Default target (js for Cloudflare Workers)
-target := "js"
-
 # Default task: check and test
 default: check test
 
@@ -16,15 +13,16 @@ gen-config:
 
 # Type check
 check:
-    moon check --deny-warn --target {{target}}
+    moon check --deny-warn --target js
+    pnpm exec vp check src/worker-entry.ts src/client/markable.ts src/types.d.ts vite.config.ts vite.markable.config.ts package.json tsconfig.json
 
 # Run tests
 test:
-    moon test --target {{target}}
+    moon test --target js
 
 # Update snapshot tests
 test-update:
-    moon test --update --target {{target}}
+    moon test --update --target js
 
 # Generate type definition files
 info:
@@ -35,11 +33,20 @@ clean:
     moon clean
 
 # Pre-release check
-release-check: fmt info check test
+release-check:
+    moon fmt
+    moon info
+    moon check --deny-warn --target js
+    moon test --target js
+    pnpm exec vp build -c vite.markable.config.ts
+    pnpm exec vp check src/worker-entry.ts src/client/markable.ts src/types.d.ts vite.config.ts vite.markable.config.ts package.json tsconfig.json
+    pnpm exec vp build
 
 # Build for Cloudflare Workers
 build: gen-config
-    moon build --target {{target}}
+    pnpm exec vp build -c vite.markable.config.ts
+    moon build --release --target js
+    pnpm exec vp build
 
 # Initialize local D1 database
 init-db:
@@ -54,8 +61,10 @@ seed-db:
     npx wrangler d1 execute blog-db --local --file=seed.sql
 
 # Run local development server
-dev: build
-    npx wrangler dev fixtures/worker.js
+dev: gen-config
+    pnpm exec vp build -c vite.markable.config.ts
+    moon build --release --target js
+    pnpm exec vp dev
 
 # Full sequence for local development
 local: build init-db seed-db dev
@@ -67,11 +76,11 @@ deploy: build
     opz run {{item_title}} -- sh -c 'printf "%s" "$ADMIN_USER_ID" | npx wrangler secret put ADMIN_USER_ID --env production'
     opz run {{item_title}} -- sh -c 'printf "%s" "$JWT_SECRET" | npx wrangler secret put JWT_SECRET --env production'
     opz run {{item_title}} -- sh -c 'printf "%s" "$ADMIN_SETUP_TOKEN" | npx wrangler secret put ADMIN_SETUP_TOKEN --env production'
-    opz run {{item_title}} -- npx wrangler deploy fixtures/worker.js --env production
+    opz run {{item_title}} -- npx wrangler deploy --env production
 
 # Deploy to Cloudflare without secrets (uses local env)
 deploy-local: build
-    npx wrangler deploy fixtures/worker.js
+    npx wrangler deploy
 
 # Initialize remote D1 database (production)
 deploy-db:

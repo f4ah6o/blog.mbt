@@ -8,7 +8,7 @@ pub struct BlogPost {
   slide_flag : Bool
   published_at : String
   updated_at : String
-} derive(Show, Eq)
+} derive(Debug, Eq)
 
 ///|
 pub fn BlogPost::new(

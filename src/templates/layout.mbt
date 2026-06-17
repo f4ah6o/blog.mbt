@@ -214,6 +214,10 @@ pub fn layout_with_meta(
       ]),
       @tmpx.script([@tmpx.src("/mhx.js"), @tmpx.bool_attr("defer")], []),
       @tmpx.script([@tmpx.src("/link-card.js"), @tmpx.bool_attr("defer")], []),
+      @tmpx.script(
+        [@tmpx.src("/generated/markable.js"), @tmpx.bool_attr("defer")],
+        [],
+      ),
     ]),
   ])
   @tmpx.render(@tmpx.fragment([page, html]))

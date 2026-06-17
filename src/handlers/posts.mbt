@@ -203,7 +203,7 @@ pub async fn handle_post_detail(
         description,
         url: "/posts/" + post.slug,
         og_type: "article",
-        image_url: None,
+        image_url: @lib.extract_og_image_url(post.content),
         twitter_card: None,
       }
       let html = @templates.layout_with_meta(

@@ -185,7 +185,6 @@ fn absolute_post_url(slug : String) -> String {
   }
 }
 
-///|
 fn yaml_quote(value : String) -> String {
   let sb = StringBuilder::new()
   sb.write_char('"')
@@ -529,7 +528,7 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
                   description,
                   url: "/posts/" + post.slug,
                   og_type: "article",
-                  image_url: None,
+                  image_url: @lib.extract_og_image_url(post.content),
                   twitter_card: Some("summary_large_image"),
                 }
                 let html = @templates.layout_with_meta(
