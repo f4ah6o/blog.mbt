@@ -164,6 +164,10 @@ pub fn parse_slide_front_matter(
     if line == "" || line.has_prefix("#"[:]) {
       continue
     }
+    // Tolerate OKF YAML block-list items (e.g. continuation lines of `tags:`).
+    if line == "-" || line.has_prefix("- "[:]) {
+      continue
+    }
     match parse_front_matter_key_value(line) {
       Some((key, value)) =>
         if key == "slide_theme" {

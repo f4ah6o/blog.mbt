@@ -271,13 +271,13 @@ RSS フィードは `/rss.xml` で配信されます。
 
 - 例: `/posts/hello-world.md`
 - Content-Type: `text/markdown; charset=utf-8`
-- 先頭に YAML front matter が付きます:
+- 先頭に [OKF (Open Knowledge Format) v0.1](https://github.com/GoogleCloudPlatform/knowledge-catalog/tree/main/okf) 準拠の YAML front matter が付きます:
+  - `type`（`Slide Deck` または `Blog Post`）
   - `title`
-  - `slug`
-  - `excerpt`
-  - `published_at`
-  - `updated_at`
-  - `url`
+  - `description`（記事の excerpt）
+  - `resource`（記事の絶対 URL）
+  - `timestamp`（最終更新日時）
+- publication date は OKF に標準キーが無いため、本文先頭に `*Published: ...*` の行として畳み込まれます。
 
 ### 本文で使える記法
 
