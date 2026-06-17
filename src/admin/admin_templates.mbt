@@ -103,11 +103,13 @@ fn render_post_form(
       @tmpx.textarea([@tmpx.name_("content")], [@tmpx.text(content)]),
       @tmpx.raw_html(slide_toggle_html),
       @tmpx.p([], [
-        @tmpx.text("Slide posts require front matter at the top, for example:"),
+        @tmpx.text(
+          "Slide posts require OKF front matter at the top, for example:",
+        ),
       ]),
       @tmpx.pre([], [
         @tmpx.text(
-          "---\nslide_theme: classic  # classic | sunrise | ocean\n---\n\n## Slide 1\n- Point A\n\n## Slide 2\n- Point B",
+          "---\ntype: Slide Deck\ntitle: My Deck\nslide_theme: classic  # classic | sunrise | ocean\n---\n\n## Slide 1\n- Point A\n\n## Slide 2\n- Point B",
         ),
       ]),
       @tmpx.div([@tmpx.class_("actions")], [

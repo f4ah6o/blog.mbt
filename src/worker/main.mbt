@@ -205,29 +205,31 @@ fn yaml_quote(value : String) -> String {
 
 ///|
 fn render_markdown_with_front_matter(post : @models.BlogPost) -> String {
+  // OKF (Open Knowledge Format) v0.1 front matter.
+  // Required: type. Recommended: title, description, resource, timestamp.
   let sb = StringBuilder::new()
   sb.write_string("---\n")
+  sb.write_string("type: ")
+  sb.write_string(
+    yaml_quote(if post.slide_flag { "Slide Deck" } else { "Blog Post" }),
+  )
+  sb.write_char('\n')
   sb.write_string("title: ")
   sb.write_string(yaml_quote(post.title))
   sb.write_char('\n')
-  sb.write_string("slug: ")
-  sb.write_string(yaml_quote(post.slug))
-  sb.write_char('\n')
-  sb.write_string("excerpt: ")
+  sb.write_string("description: ")
   sb.write_string(yaml_quote(post.excerpt))
   sb.write_char('\n')
-  sb.write_string("slide_flag: ")
-  sb.write_string(yaml_quote(if post.slide_flag { "true" } else { "false" }))
-  sb.write_char('\n')
-  sb.write_string("published_at: ")
-  sb.write_string(yaml_quote(post.published_at))
-  sb.write_char('\n')
-  sb.write_string("updated_at: ")
-  sb.write_string(yaml_quote(post.updated_at))
-  sb.write_char('\n')
-  sb.write_string("url: ")
+  sb.write_string("resource: ")
   sb.write_string(yaml_quote(absolute_post_url(post.slug)))
+  sb.write_char('\n')
+  sb.write_string("timestamp: ")
+  sb.write_string(yaml_quote(post.updated_at))
   sb.write_string("\n---\n\n")
+  // OKF has no standard publication-date key; preserve it in the body.
+  sb.write_string("*Published: ")
+  sb.write_string(post.published_at)
+  sb.write_string("*\n\n")
   sb.write_string(post.content)
   sb.to_string()
 }

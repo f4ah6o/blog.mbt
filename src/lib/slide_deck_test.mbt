@@ -19,10 +19,36 @@ test "parse slide front matter" {
     #|## Slide A
     #|- hello
     #|})
-    
+
+  inspect(parsed, content=expected)
+}
+
+///|
+test "parse OKF front matter tolerates extra keys and block-list tags" {
+  let content =
+    #|---
+    #|type: Slide Deck
+    #|title: My Deck
+    #|description: An OKF slide deck.
+    #|tags:
+    #|  - moonbit
+    #|  - slides
+    #|timestamp: 2026-01-30T12:00:00Z
+    #|slide_theme: sunrise
+    #|---
+    #|
+    #|## Slide A
+    #|- hello
+    #|
+  let parsed = parse_slide_front_matter(content)
   inspect(
     parsed,
-    content=expected,
+    content=(
+      #|Ok({slide_theme: sunrise, body: 
+      #|## Slide A
+      #|- hello
+      #|})
+    ),
   )
 }
 

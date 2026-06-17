@@ -65,6 +65,8 @@ VALUES (
   'svg-slide-demo',
   'Slide rendering with front matter theme',
   '---
+type: Slide Deck
+title: SVG Slide Demo
 slide_theme: sunrise
 ---
 
