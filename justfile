@@ -19,6 +19,7 @@ check:
 # Run tests
 test:
     moon test --target js
+    node --test scripts/*.test.mjs
 
 # Update snapshot tests
 test-update:
@@ -52,9 +53,26 @@ build: gen-config
 init-db:
     npx wrangler d1 execute blog-db --local --file=schema.sql
 
-# Migrate local D1 database to admin v0.3 schema
+# Migrate local D1 database to content v0.4 schema
 migrate-db:
     npx wrangler d1 execute blog-db --local --file=migrate_admin_v03.sql
+    npx wrangler d1 execute blog-db --local --file=migrate_content_v04.sql
+
+# Validate the private OKF bundle configured by BLOG_KNOWLEDGE_DIR
+content-check:
+    node scripts/okf_content.mjs validate
+
+# Project the private OKF bundle configured by BLOG_KNOWLEDGE_DIR into local D1
+content-sync:
+    node scripts/okf_content.mjs sync
+
+# Export current D1 articles to a new OKF bundle; pass --remote for production
+content-export output_dir mode="--local":
+    node scripts/export_posts.mjs --output-dir {{output_dir}} {{mode}}
+
+# Run the full blog locally from an OKF bundle and sync changes on save
+preview: build init-db
+    node scripts/preview.mjs
 
 # Seed local D1 database
 seed-db:
@@ -86,6 +104,7 @@ deploy-local: build
 deploy-db:
     npx wrangler d1 execute blog-db --remote --file=schema.sql
 
-# Migrate remote D1 database to admin v0.3 schema
+# Migrate remote D1 database to content v0.4 schema
 deploy-migrate-db:
     npx wrangler d1 execute blog-db --remote --file=migrate_admin_v03.sql
+    npx wrangler d1 execute blog-db --remote --file=migrate_content_v04.sql

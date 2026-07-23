@@ -11,7 +11,12 @@ fn row_to_post(row : @core.Any) -> @models.BlogPost {
   }
   let content : String = row["content"].cast()
   let slide_flag = @cloudflare.js_number_to_int(row["slide_flag"]) == 1
-  let published_at : String = row["published_at"].cast()
+  let published_at_raw = row["published_at"]
+  let published_at : String = if @core.is_null(published_at_raw) {
+    ""
+  } else {
+    published_at_raw.cast()
+  }
   let updated_at : String = row["updated_at"].cast()
   @models.BlogPost::new(
     id, title, slug, excerpt, content, slide_flag, published_at, updated_at,
@@ -25,7 +30,7 @@ pub async fn list_posts(
   offset : Int,
 ) -> Array[@models.BlogPost] raise @cloudflare.D1Error {
   let stmt = db.prepare(
-    "SELECT * FROM posts WHERE status = 'published' ORDER BY published_at DESC LIMIT ? OFFSET ?",
+    "SELECT * FROM posts WHERE status = 'published' AND visibility = 'public' ORDER BY published_at DESC LIMIT ? OFFSET ?",
   )
   let bound = stmt.bind2(@core.any(limit), @core.any(offset))
   let result = bound.all()
@@ -43,7 +48,7 @@ pub async fn get_by_slug(
   slug : String,
 ) -> @models.BlogPost? raise @cloudflare.D1Error {
   let stmt = db.prepare(
-    "SELECT * FROM posts WHERE slug = ? AND status = 'published'",
+    "SELECT * FROM posts WHERE slug = ? AND status = 'published' AND visibility = 'public'",
   )
   let bound = stmt.bind1(@core.any(slug))
   let row = bound.first()
@@ -58,7 +63,7 @@ pub async fn count(
   db : @cloudflare.D1Database,
 ) -> Int raise @cloudflare.D1Error {
   let stmt = db.prepare(
-    "SELECT COUNT(*) as count FROM posts WHERE status = 'published'",
+    "SELECT COUNT(*) as count FROM posts WHERE status = 'published' AND visibility = 'public'",
   )
   let result = stmt.first_col("count")
   match result {

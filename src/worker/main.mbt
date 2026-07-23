@@ -53,7 +53,12 @@ fn row_to_post(row : @core.Any) -> @models.BlogPost {
   }
   let content : String = row["content"].cast()
   let slide_flag = @cloudflare.js_number_to_int(row["slide_flag"]) == 1
-  let published_at : String = row["published_at"].cast()
+  let published_at_raw = row["published_at"]
+  let published_at : String = if @core.is_null(published_at_raw) {
+    ""
+  } else {
+    published_at_raw.cast()
+  }
   let updated_at : String = row["updated_at"].cast()
   @models.BlogPost::new(
     id, title, slug, excerpt, content, slide_flag, published_at, updated_at,
@@ -84,6 +89,10 @@ extern "js" fn get_db_from_env(env : @cloudflare.CloudflareEnv) -> @core.Any =
   #| (env) => env.BLOG_DB
 
 ///|
+extern "js" fn preview_drafts_enabled(env : @cloudflare.CloudflareEnv) -> Bool =
+  #| (env) => env.BLOG_PREVIEW_DRAFTS === true || env.BLOG_PREVIEW_DRAFTS === "true"
+
+///|
 extern "js" fn parse_url(url_str : String) -> @core.Any =
   #| (url_str) => new URL(url_str)
 
@@ -99,9 +108,15 @@ extern "js" fn get_search_param(url : @core.Any, name : String) -> String? =
   #| }
 
 ///|
-extern "js" fn db_count_posts(db : @core.Any) -> @core.Promise[Int] =
-  #| async (db) => {
-  #|   const result = await db.prepare("SELECT COUNT(*) as count FROM posts WHERE status = 'published'").first("count");
+extern "js" fn db_count_posts(
+  db : @core.Any,
+  include_preview : Bool,
+) -> @core.Promise[Int] =
+  #| async (db, includePreview) => {
+  #|   const visibility = includePreview
+  #|     ? "status IN ('draft', 'published', 'archived')"
+  #|     : "status = 'published' AND visibility = 'public'";
+  #|   const result = await db.prepare(`SELECT COUNT(*) as count FROM posts WHERE ${visibility}`).first("count");
   #|   return result || 0;
   #| }
 
@@ -110,9 +125,13 @@ extern "js" fn db_list_posts(
   db : @core.Any,
   limit : Int,
   offset : Int,
+  include_preview : Bool,
 ) -> @core.Promise[@core.Any] =
-  #| async (db, limit, offset) => {
-  #|   const result = await db.prepare("SELECT * FROM posts WHERE status = 'published' ORDER BY published_at DESC LIMIT ? OFFSET ?").bind(limit, offset).all();
+  #| async (db, limit, offset, includePreview) => {
+  #|   const visibility = includePreview
+  #|     ? "status IN ('draft', 'published', 'archived')"
+  #|     : "status = 'published' AND visibility = 'public'";
+  #|   const result = await db.prepare(`SELECT * FROM posts WHERE ${visibility} ORDER BY published_at DESC LIMIT ? OFFSET ?`).bind(limit, offset).all();
   #|   return result.results || [];
   #| }
 
@@ -120,9 +139,13 @@ extern "js" fn db_list_posts(
 extern "js" fn db_get_post_by_slug(
   db : @core.Any,
   slug : String,
+  include_preview : Bool,
 ) -> @core.Promise[@core.Any] =
-  #| async (db, slug) => {
-  #|   return await db.prepare("SELECT * FROM posts WHERE slug = ? AND status = 'published'").bind(slug).first();
+  #| async (db, slug, includePreview) => {
+  #|   const visibility = includePreview
+  #|     ? "status IN ('draft', 'published', 'archived')"
+  #|     : "status = 'published' AND visibility = 'public'";
+  #|   return await db.prepare(`SELECT * FROM posts WHERE slug = ? AND ${visibility}`).bind(slug).first();
   #| }
 
 ///|
@@ -185,6 +208,7 @@ fn absolute_post_url(slug : String) -> String {
   }
 }
 
+///|
 fn yaml_quote(value : String) -> String {
   let sb = StringBuilder::new()
   sb.write_char('"')
@@ -234,8 +258,12 @@ fn render_markdown_with_front_matter(post : @models.BlogPost) -> String {
 }
 
 ///|
-async fn get_post_by_slug(db : @core.Any, slug : String) -> @models.BlogPost? {
-  let row = db_get_post_by_slug(db, slug).wait()
+async fn get_post_by_slug(
+  db : @core.Any,
+  slug : String,
+  include_preview : Bool,
+) -> @models.BlogPost? {
+  let row = db_get_post_by_slug(db, slug, include_preview).wait()
   if @core.is_null(row) {
     None
   } else {
@@ -373,6 +401,7 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
             500,
           )
         }
+        let include_preview = preview_drafts_enabled(env)
 
         // Route: /api/ogp (OGP data fetch)
         if pathname == "/api/ogp" {
@@ -409,9 +438,9 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
           let page = parse_page(get_search_param(url, "page"))
           let limit = parse_limit(get_search_param(url, "limit"))
           let offset = (page - 1) * limit
-          let total = db_count_posts(db).wait()
+          let total = db_count_posts(db, include_preview).wait()
           let total_pages = if total == 0 { 1 } else { ceil_div(total, limit) }
-          let rows_any = db_list_posts(db, limit, offset).wait()
+          let rows_any = db_list_posts(db, limit, offset, include_preview).wait()
           let posts : Array[@models.BlogPost] = []
           let rows_arr : Array[@core.Any] = rows_any.cast()
           for row in rows_arr {
@@ -425,7 +454,7 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
 
         // Route: /rss.xml (RSS feed for published posts)
         if pathname == "/rss.xml" {
-          let rows_any = db_list_posts(db, 30, 0).wait()
+          let rows_any = db_list_posts(db, 30, 0, false).wait()
           let rows_arr : Array[@core.Any] = rows_any.cast()
           let posts : Array[@models.BlogPost] = []
           for row in rows_arr {
@@ -440,10 +469,11 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
             // Route: /posts/:slug.md (raw markdown with front matter)
             match strip_md_suffix(slug) {
               Some(base_slug) => {
-                let post_opt = match get_post_by_slug(db, base_slug) {
+                let post_opt = match
+                  get_post_by_slug(db, base_slug, include_preview) {
                   Some(post) => Some(post)
                   // Compatibility: if slug itself exists with ".md", serve it too.
-                  None => get_post_by_slug(db, slug)
+                  None => get_post_by_slug(db, slug, include_preview)
                 }
                 match post_opt {
                   Some(post) =>
@@ -461,7 +491,7 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
               None => ()
             }
 
-            match get_post_by_slug(db, slug) {
+            match get_post_by_slug(db, slug, include_preview) {
               None =>
                 return html_response_js(
                   @templates.error_layout(
@@ -548,9 +578,9 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
           let page = parse_page(get_search_param(url, "page"))
           let limit = parse_limit(get_search_param(url, "limit"))
           let offset = (page - 1) * limit
-          let total = db_count_posts(db).wait()
+          let total = db_count_posts(db, include_preview).wait()
           let total_pages = if total == 0 { 1 } else { ceil_div(total, limit) }
-          let rows_any = db_list_posts(db, limit, offset).wait()
+          let rows_any = db_list_posts(db, limit, offset, include_preview).wait()
           let posts : Array[@models.BlogPost] = []
           let rows_arr : Array[@core.Any] = rows_any.cast()
           for row in rows_arr {

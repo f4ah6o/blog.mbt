@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS posts (
   content TEXT NOT NULL,
   slide_flag INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'draft',
+  visibility TEXT NOT NULL DEFAULT 'public',
   published_at TEXT,
   updated_at TEXT NOT NULL
 );

@@ -53,7 +53,12 @@ fn row_to_post(row : @core.Any) -> @models.BlogPost {
   }
   let content : String = row["content"].cast()
   let slide_flag = @cloudflare.js_number_to_int(row["slide_flag"]) == 1
-  let published_at : String = row["published_at"].cast()
+  let published_at_raw = row["published_at"]
+  let published_at : String = if @core.is_null(published_at_raw) {
+    ""
+  } else {
+    published_at_raw.cast()
+  }
   let updated_at : String = row["updated_at"].cast()
   @models.BlogPost::new(
     id, title, slug, excerpt, content, slide_flag, published_at, updated_at,
@@ -72,7 +77,9 @@ pub async fn handle_posts_page(
 
   // Count total posts
   let count_val = db
-    .prepare("SELECT COUNT(*) as count FROM posts WHERE status = 'published'")
+    .prepare(
+      "SELECT COUNT(*) as count FROM posts WHERE status = 'published' AND visibility = 'public'",
+    )
     .first_col("count") catch {
       _ =>
         return @http.Response::html(
@@ -89,7 +96,7 @@ pub async fn handle_posts_page(
   // List posts
   let result = db
     .prepare(
-      "SELECT * FROM posts WHERE status = 'published' ORDER BY published_at DESC LIMIT ? OFFSET ?",
+      "SELECT * FROM posts WHERE status = 'published' AND visibility = 'public' ORDER BY published_at DESC LIMIT ? OFFSET ?",
     )
     .bind2(@core.any(limit), @core.any(offset))
     .all() catch {
@@ -129,7 +136,9 @@ pub async fn handle_posts_partial(
 
   // Count total posts
   let count_val = db
-    .prepare("SELECT COUNT(*) as count FROM posts WHERE status = 'published'")
+    .prepare(
+      "SELECT COUNT(*) as count FROM posts WHERE status = 'published' AND visibility = 'public'",
+    )
     .first_col("count") catch {
       _ =>
         return html_response(
@@ -145,7 +154,7 @@ pub async fn handle_posts_partial(
   // List posts
   let result = db
     .prepare(
-      "SELECT * FROM posts WHERE status = 'published' ORDER BY published_at DESC LIMIT ? OFFSET ?",
+      "SELECT * FROM posts WHERE status = 'published' AND visibility = 'public' ORDER BY published_at DESC LIMIT ? OFFSET ?",
     )
     .bind2(@core.any(limit), @core.any(offset))
     .all() catch {
@@ -169,7 +178,9 @@ pub async fn handle_post_detail(
   db : @cloudflare.D1Database,
 ) -> @http.Response {
   let row = db
-    .prepare("SELECT * FROM posts WHERE slug = ? AND status = 'published'")
+    .prepare(
+      "SELECT * FROM posts WHERE slug = ? AND status = 'published' AND visibility = 'public'",
+    )
     .bind1(@core.any(slug))
     .first() catch {
       _ =>

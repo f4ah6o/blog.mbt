@@ -19,6 +19,7 @@ just local
 
 ```bash
 just local        # 完全なローカル開発環境をセットアップ（build + init-db + seed-db + dev）
+just preview      # OKF MarkdownをD1へ同期して、保存時に更新するPreviewを起動
 just dev          # ローカル開発サーバー起動
 just build        # Cloudflare Workers 向けにビルド
 just fmt          # コードフォーマット
@@ -31,9 +32,21 @@ just test-update  # スナップショットテストを更新
 
 ```bash
 just init-db      # ローカル D1 データベースを初期化（schema.sql 適用）
-just migrate-db   # ローカル DB を v0.3 スキーマにマイグレーション
+just migrate-db   # ローカル DB を v0.4 スキーマにマイグレーション
 just seed-db      # シードデータを投入
 ```
+
+### OKF Markdown Preview
+
+記事の正本を別リポジトリのOKF bundleに置く場合は、そのディレクトリを指定してPreviewを起動します。`Blog Post` と `Slide Deck` だけがD1へ投影され、`Concept` や `Decision` などの知識ページは投影されません。
+
+```bash
+export BLOG_KNOWLEDGE_DIR=/path/to/private-knowledge
+just content-check
+just preview
+```
+
+Previewでは `draft`、`published`、`archived` を確認できますが、RSSなどの公開向けルートは `published` かつ `public` の記事だけを返します。既存D1記事の初回移行には、空の出力先へ `just content-export /path/to/private-knowledge` を使えます。リモートD1を読み出す場合は `just content-export /path/to/private-knowledge --remote` とします。
 
 ### デプロイ
 
