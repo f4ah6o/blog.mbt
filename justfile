@@ -48,6 +48,7 @@ build: gen-config
     pnpm exec vp build -c vite.markable.config.ts
     moon build --release --target js
     pnpm exec vp build
+    node scripts/patch_worker_global_init.mjs
 
 # Initialize local D1 database
 init-db:

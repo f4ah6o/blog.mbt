@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm exec vp dev",
-    "build": "pnpm exec vp build -c vite.markable.config.ts && moon build --release --target js && pnpm exec vp build",
+    "build": "pnpm exec vp build -c vite.markable.config.ts && moon build --release --target js && pnpm exec vp build && node scripts/patch_worker_global_init.mjs",
     "check": "pnpm exec vp check src/worker-entry.ts src/client/markable.ts src/types.d.ts vite.config.ts vite.markable.config.ts package.json tsconfig.json",
     "moon:check": "moon check --deny-warn --target js",
     "moon:test": "moon test --target js",
