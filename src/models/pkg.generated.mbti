@@ -1,6 +1,10 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "f4ah6o/blog.mbt/models"
 
+import {
+  "moonbitlang/core/debug",
+}
+
 // Values
 
 // Errors
@@ -15,7 +19,7 @@ pub struct BlogPost {
   slide_flag : Bool
   published_at : String
   updated_at : String
-} derive(Eq, Show)
+} derive(Eq, @debug.Debug)
 pub fn BlogPost::new(Int, String, String, String, String, Bool, String, String) -> Self
 
 // Type aliases

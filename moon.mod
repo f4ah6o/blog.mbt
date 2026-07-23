@@ -3,7 +3,7 @@ name = "f4ah6o/blog.mbt"
 version = "0.1.0"
 
 import {
-  "moonbitlang/async@0.16.6",
+  "moonbitlang/async@0.20.2",
   "mizchi/cloudflare@0.1.8",
   "mizchi/js@0.10.14",
   "f4ah6o/tmpx@0.4.0",
@@ -24,6 +24,4 @@ description = ""
 
 preferred_target = "js"
 
-options(
-  source: "src",
-)
+source = "src"

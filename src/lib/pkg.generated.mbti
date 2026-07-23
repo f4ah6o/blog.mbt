@@ -4,6 +4,7 @@ package "f4ah6o/blog.mbt/lib"
 import {
   "f4ah6o/papyr/content",
   "f4ah6o/tmpx/tmpx",
+  "moonbitlang/core/debug",
   "moonbitlang/core/hashmap",
 }
 
@@ -59,12 +60,12 @@ pub fn OgpData::empty() -> Self
 pub struct SlideContent {
   title : String
   lines : Array[String]
-} derive(Eq, Show)
+} derive(Eq, @debug.Debug)
 
 pub struct SlideSource {
   slide_theme : String
   body : String
-} derive(Eq, Show)
+} derive(Eq, @debug.Debug)
 
 // Type aliases
 pub using @content {type EmbedData}
