@@ -1,6 +1,7 @@
 import {
   "mizchi/cloudflare",
   "mizchi/js/core",
+  "moonbitlang/core/json",
 }
 
 import {

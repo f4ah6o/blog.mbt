@@ -24,6 +24,15 @@ pub struct AuthOptionsResponse {
 } derive(Debug, ToJson)
 
 ///|
+/// Expose the server-generated challenge identifier without exposing the rest
+/// of the options representation to the caller.
+pub fn AuthOptionsResponse::challenge_identifier(
+  self : AuthOptionsResponse,
+) -> String {
+  self.challenge_id
+}
+
+///|
 /// Registration options response (sent to browser)
 pub struct RegOptionsResponse {
   /// The challenge bytes (base64url encoded)
@@ -234,6 +243,27 @@ pub struct AuthVerifyRequest {
   authenticator_data : String
   signature : String
 } derive(Debug, FromJson)
+
+///|
+/// Public constructor so other packages can bridge a browser assertion without
+/// depending on the private representation of the request.
+pub fn AuthVerifyRequest::new(
+  challenge_id : String,
+  credential_id : String,
+  raw_id : String,
+  client_data_json : String,
+  authenticator_data : String,
+  signature : String,
+) -> AuthVerifyRequest {
+  {
+    challenge_id,
+    credential_id,
+    raw_id,
+    client_data_json,
+    authenticator_data,
+    signature,
+  }
+}
 
 ///|
 /// Result of authentication verification

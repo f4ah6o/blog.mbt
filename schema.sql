@@ -29,6 +29,26 @@ CREATE TABLE IF NOT EXISTS oauth_authorization_codes (
 CREATE INDEX IF NOT EXISTS idx_oauth_authorization_codes_expiry
   ON oauth_authorization_codes (expires_at, consumed_at);
 
+CREATE TABLE IF NOT EXISTS oauth_pending_authorizations (
+  challenge_id TEXT NOT NULL UNIQUE,
+  user_id TEXT NOT NULL,
+  client_id TEXT NOT NULL,
+  redirect_uri TEXT NOT NULL,
+  resource TEXT NOT NULL,
+  scope TEXT NOT NULL,
+  code_challenge TEXT NOT NULL,
+  code_challenge_method TEXT NOT NULL CHECK (code_challenge_method = 'S256'),
+  state TEXT,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  consumed_at INTEGER,
+  CHECK (expires_at > created_at),
+  CHECK (consumed_at IS NULL OR consumed_at >= created_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_oauth_pending_authorizations_expiry
+  ON oauth_pending_authorizations (expires_at, consumed_at);
+
 CREATE TABLE IF NOT EXISTS oauth_access_tokens (
   token_hash TEXT NOT NULL UNIQUE,
   client_id TEXT NOT NULL,

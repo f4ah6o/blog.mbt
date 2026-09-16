@@ -40,6 +40,31 @@ pub fn get_rp_origin(env : @cloudflare.CloudflareEnv) -> String? {
 }
 
 ///|
+/// OAuth owns a separate credential namespace and user identity. It must not
+/// fall back to ADMIN_AUTH or ADMIN_USER_ID.
+pub fn get_oauth_auth_kv(env : @cloudflare.CloudflareEnv) -> @core.Any? {
+  match get_env_any(env, "OAUTH_AUTH") {
+    Some(value) => Some(@core.identity(value))
+    None => None
+  }
+}
+
+///|
+pub fn get_oauth_user_id(env : @cloudflare.CloudflareEnv) -> String? {
+  get_env_string(env, "OAUTH_USER_ID")
+}
+
+///|
+pub fn get_oauth_rp_id(env : @cloudflare.CloudflareEnv) -> String? {
+  get_env_string(env, "OAUTH_RP_ID")
+}
+
+///|
+pub fn get_oauth_origin(env : @cloudflare.CloudflareEnv) -> String? {
+  get_env_string(env, "OAUTH_RP_ORIGIN")
+}
+
+///|
 pub fn should_use_secure_cookie(env : @cloudflare.CloudflareEnv) -> Bool {
   match get_rp_origin(env) {
     Some(origin) => origin.has_prefix("https://")

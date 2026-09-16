@@ -55,6 +55,268 @@ test "PKCE verifier and challenge syntax" {
 }
 
 ///|
+fn test_client_metadata() -> ClientMetadata {
+  parse_client_metadata(
+    "https://client.example/client.json", "{\"client_id\":\"https://client.example/client.json\",\"client_name\":\"Example\",\"redirect_uris\":[\"https://client.example/callback\"]}",
+  ).unwrap()
+}
+
+///|
+test "CIMD identifiers require absolute HTTPS URLs" {
+  assert_eq(validate_client_id_url("https://client.example/client.json"), true)
+  assert_eq(validate_client_id_url("https://client.example"), false)
+  assert_eq(
+    validate_client_id_url("https://user@client.example/client.json"),
+    false,
+  )
+  assert_eq(
+    validate_client_id_url("https://client.example/a/../client.json"),
+    false,
+  )
+  assert_eq(
+    validate_client_id_url("https://client.example/client.json?q=1"),
+    false,
+  )
+  assert_eq(validate_client_id_url("http://client.example/client.json"), false)
+  assert_eq(
+    validate_client_id_url("https://client.example/client.json#frag"),
+    false,
+  )
+  assert_eq(validate_client_id_url("https://client.example/a b"), false)
+}
+
+///|
+test "CIMD metadata binds exact client id and declared HTTPS redirects" {
+  let client_id = "https://client.example/client.json"
+  let raw = "{\"client_id\":\"https://client.example/client.json\",\"client_name\":\"Example\",\"redirect_uris\":[\"https://client.example/callback\"]}"
+  assert_eq(parse_client_metadata(client_id, raw) is Some(_), true)
+  assert_eq(
+    parse_client_metadata(
+      client_id, "{\"client_id\":\"https://evil.example/client.json\",\"redirect_uris\":[\"https://client.example/callback\"]}",
+    )
+    is None,
+    true,
+  )
+  assert_eq(
+    parse_client_metadata(
+      client_id, "{\"redirect_uris\":[\"https://client.example/callback\"]}",
+    )
+    is None,
+    true,
+  )
+  assert_eq(
+    parse_client_metadata(
+      client_id, "{\"client_id\":\"https://client.example/client.json\",\"redirect_uris\":[\"https://client.example/callback\"]}",
+    )
+    is None,
+    true,
+  )
+  assert_eq(
+    parse_client_metadata(
+      client_id, "{\"client_id\":\"https://client.example/client.json\",\"redirect_uris\":[]}",
+    )
+    is None,
+    true,
+  )
+  assert_eq(
+    parse_client_metadata(
+      client_id, "{\"client_id\":\"https://client.example/client.json\",\"redirect_uris\":[\"http://client.example/callback\"]}",
+    )
+    is None,
+    true,
+  )
+  assert_eq(
+    parse_client_metadata("http://client.example/client.json", raw) is None,
+    true,
+  )
+  assert_eq(parse_client_metadata(client_id, "not json") is None, true)
+  match parse_client_metadata(client_id, raw) {
+    Some(metadata) => {
+      assert_eq(
+        metadata.redirect_uri_allowed("https://client.example/callback"),
+        true,
+      )
+      assert_eq(
+        metadata.redirect_uri_allowed("https://client.example/other"),
+        false,
+      )
+    }
+    None => fail("expected valid metadata")
+  }
+}
+
+///|
+test "authorization requests bind CIMD client, redirect, resource, and S256" {
+  let client = test_client_metadata()
+  let client_id = "https://client.example/client.json"
+  let redirect_uri = "https://client.example/callback"
+  let resource = "https://blog.example/mcp"
+  let challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+  let valid = validate_authorization_request(
+    "code",
+    client_id,
+    redirect_uri,
+    resource,
+    "blog:read",
+    challenge,
+    "S256",
+    Some("opaque-state"),
+    resource,
+    client,
+  )
+  assert_eq(valid is Some(_), true)
+  assert_eq(
+    validate_authorization_request(
+      "token",
+      client_id,
+      redirect_uri,
+      resource,
+      "blog:read",
+      challenge,
+      "S256",
+      None,
+      resource,
+      client,
+    )
+    is None,
+    true,
+  )
+  assert_eq(
+    validate_authorization_request(
+      "code",
+      client_id,
+      "https://client.example/other",
+      resource,
+      "blog:read",
+      challenge,
+      "S256",
+      None,
+      resource,
+      client,
+    )
+    is None,
+    true,
+  )
+  assert_eq(
+    validate_authorization_request(
+      "code",
+      client_id,
+      redirect_uri,
+      "https://blog.example/other",
+      "blog:read",
+      challenge,
+      "S256",
+      None,
+      resource,
+      client,
+    )
+    is None,
+    true,
+  )
+  assert_eq(
+    validate_authorization_request(
+      "code",
+      client_id,
+      redirect_uri,
+      resource,
+      "blog:read",
+      challenge,
+      "plain",
+      None,
+      resource,
+      client,
+    )
+    is None,
+    true,
+  )
+  assert_eq(
+    valid_redirect_uri("https://client.example/callback#fragment"),
+    false,
+  )
+}
+
+///|
+test "pending authorizations bind challenge, user, request, and expiry" {
+  let client = test_client_metadata()
+  let client_id = "https://client.example/client.json"
+  let redirect_uri = "https://client.example/callback"
+  let resource = "https://blog.example/mcp"
+  let challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+  let request = validate_authorization_request(
+    "code",
+    client_id,
+    redirect_uri,
+    resource,
+    "blog:read blog:write",
+    challenge,
+    "S256",
+    Some("opaque-state"),
+    resource,
+    client,
+  ).unwrap()
+  let pending = pending_authorization(
+    "challenge-id",
+    "oauth-user",
+    request,
+    100,
+    PENDING_AUTHORIZATION_TTL_SECONDS,
+  ).unwrap()
+  assert_eq(pending.challenge_identifier(), "challenge-id")
+  assert_eq(pending.expiry(), 100 + PENDING_AUTHORIZATION_TTL_SECONDS)
+  assert_eq(
+    pending.bound_request().code_redirect("opaque-code"),
+    request.code_redirect("opaque-code"),
+  )
+  assert_eq(
+    pending_authorization(
+      "",
+      "oauth-user",
+      request,
+      100,
+      PENDING_AUTHORIZATION_TTL_SECONDS,
+    )
+    is None,
+    true,
+  )
+  assert_eq(
+    pending_authorization(
+      "challenge-id",
+      "",
+      request,
+      100,
+      PENDING_AUTHORIZATION_TTL_SECONDS,
+    )
+    is None,
+    true,
+  )
+  let zero_lifetime = pending_authorization(
+    "challenge-id", "oauth-user", request, 100, 0,
+  )
+  assert_eq(zero_lifetime is None, true)
+}
+
+///|
+test "pending claim decision enforces one-time expiry" {
+  assert_eq(pending_claim_is_allowed(true, None, 101, 100), true)
+  assert_eq(pending_claim_is_allowed(true, Some(100), 101, 100), false)
+  assert_eq(pending_claim_is_allowed(true, None, 100, 100), false)
+  assert_eq(pending_claim_is_allowed(false, None, 101, 100), false)
+}
+
+///|
+test "authorization redirects preserve state and existing query" {
+  let result = authorization_redirect(
+    "https://client.example/callback?existing=1",
+    "code",
+    "opaque-code",
+    Some("state with space"),
+  )
+  assert_eq(result.contains("existing=1"[:]), true)
+  assert_eq(result.contains("code=opaque-code"[:]), true)
+  assert_eq(result.contains("state=state+with+space"[:]), true)
+}
+
+///|
 async test "RFC 7636 S256 known vector" {
   let result = pkce_s256("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
   assert_eq(result, Some("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"))
