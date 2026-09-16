@@ -24,7 +24,15 @@
 - The authorization request binds `response_type=code`, the CIMD client, an exactly matching declared `redirect_uri`, the exact `SITE_URL + /mcp` resource, validated space-delimited scopes, mandatory PKCE `S256`, and preserved `state`.
 - The validated request is stored server-side as a short-lived `oauth_pending_authorizations` row in D1 (`BLOG_DB`), keyed by the non-secret WebAuthn `challenge_id` and holding the exact validated request fields. The verify POST accepts only the WebAuthn assertion; after WebAuthn verifies, the pending row is claimed with a single conditional `UPDATE ... WHERE consumed_at IS NULL`, so concurrent or replayed requests cannot both obtain the request for code issuance. Cloudflare KV is eventually consistent and is not used for this one-time gate; `OAUTH_AUTH` continues to hold WebAuthn credentials and challenges.
 - Issued authorization codes are 256-bit opaque secrets, stored hash-only in D1 with a 60 second lifetime. Raw codes are only placed in the redirect and are never persisted or logged.
-- The OAuth identity namespace (`OAUTH_AUTH`, `OAUTH_USER_ID`, `OAUTH_RP_ID`, `OAUTH_RP_ORIGIN`) is distinct from the admin JWT/cookie and `ADMIN_AUTH` namespace. No `/oauth/token` endpoint or MCP routing is implemented in this slice.
+- Successful and validated error authorization redirects include the RFC 9207 `iss` value exactly matching the RFC 8414 metadata issuer, and the metadata advertises `authorization_response_iss_parameter_supported=true`.
+- The OAuth identity namespace (`OAUTH_AUTH`, `OAUTH_USER_ID`, `OAUTH_RP_ID`, `OAUTH_RP_ORIGIN`) is distinct from the admin JWT/cookie and `ADMIN_AUTH` namespace. No MCP routing is implemented in this slice.
+
+## Token endpoint slice
+
+- `POST /oauth/token` accepts only `application/x-www-form-urlencoded` and rejects malformed encoding, duplicate security fields, unknown fields, and unsupported grants. The supported grants are `authorization_code` and `refresh_token` only.
+- Authorization-code exchange requires the exact stored `client_id`, `redirect_uri`, `resource`, and PKCE S256 verifier. The code claim and required token inserts execute in one D1 batch; token INSERT statements are additionally gated by the immediately preceding successful one-row claim so a concurrent same-second loser cannot mint rows from another request's `consumed_at` value.
+- Access tokens are 256-bit opaque secrets with a one-hour lifetime. `offline_access` causes issuance of a 256-bit opaque refresh token with a 30-day lifetime. D1 stores only SHA-256 hashes and exact client/resource/scope bindings; plaintext values are returned once in a `no-store` response.
+- Refresh use is bound to the exact `client_id` and resource. Rotation atomically consumes the old refresh token, inserts the replacement refresh token, and inserts the replacement access token. A replayed consumed token is classified without mutating an otherwise invalid row and revokes the full refresh-token family before returning `invalid_grant`.
 
 ## First implementation slice
 
@@ -41,7 +49,7 @@ CIMD is the preferred client-registration path. DCR is deprecated and should be 
 
 ## Security and ownership decisions
 
-- Future access and refresh tokens will be opaque, high-entropy random values. Only a hash of each token will be stored in D1; plaintext tokens are returned once and never persisted.
+- Access and refresh tokens are opaque, high-entropy random values. Only a hash of each token is stored in D1; plaintext tokens are returned once and never persisted.
 - D1 owns OAuth clients, grants, authorization codes, token hashes, scopes, expiry, revocation, and audit timestamps. KV remains appropriate for short-lived admin/WebAuthn challenges, not durable OAuth ownership.
 - WebAuthn authentication under `src/admin` proves the separately configured blog administrator identity. A future OAuth authorization step may reuse a verified admin session, but must not conflate the admin JWT/cookie or credential records with OAuth client/user/token records.
 - Issuer and protected-resource URLs must be stable and exact. The configured HTTPS `SITE_URL` is preferred over untrusted `Host` headers; request-derived origins can be added only with an explicit trusted-origin policy.
@@ -51,12 +59,10 @@ CIMD is the preferred client-registration path. DCR is deprecated and should be 
 - Add D1 OAuth schema and migrations, including hashed opaque tokens and one-time authorization codes.
 - Add authorization endpoint and a WebAuthn-backed consent flow without changing `/admin` routes.
 - Add a short-lived CIMD metadata cache; add opt-in DCR compatibility only when required.
-- Add token endpoint with resource/audience binding, PKCE verification, rotation/revocation, and no token logging.
+- Add bearer protected-resource middleware with exact resource and scope enforcement.
 - Add stateless Streamable HTTP MCP routing and read-only blog tools first, then separately authorized write/publish tools.
 - Add Cloudflare bindings/configuration, integration tests, and deployment checks after local protocol tests pass.
 
 ## Baseline dependency note
 
-The reported baseline failure is in cached `mizchi/cbor` syntax under the current MoonBit release. This work does not modify `.mooncakes`. Dependency repair should be a separate, obvious change to `moon.mod` and its generated resolution only after a compatible published dependency is confirmed; otherwise the upstream package must be updated. OAuth changes should remain reviewable independently of that repair.
-
-The current full worker/project check remains blocked before this OAuth slice by `f4ah6o/simple-webauthn@0.1.0 -> mizchi/cbor@0.1.1`, whose cached source uses the obsolete MoonBit `suberror CborError String` form. No `.mooncakes` repair is included here.
+Current MoonBit compatibility is provided by the workspace override in `moon.work` and `vendor/mizchi-cbor`; `.mooncakes` remains untouched. The vendored CBOR package is a temporary compatibility layer until upstream supports the current MoonBit release. The full project check and tests pass with this workspace override.

@@ -38,6 +38,10 @@ test "metadata uses one configured issuer and resource" {
     authorization.contains("client_id_metadata_document_supported"[:]),
     true,
   )
+  assert_eq(
+    authorization.contains("authorization_response_iss_parameter_supported"[:]),
+    true,
+  )
 }
 
 ///|
@@ -317,6 +321,29 @@ test "authorization redirects preserve state and existing query" {
 }
 
 ///|
+test "successful authorization redirects include the RFC 9207 issuer" {
+  let result = authorization_redirect_with_issuer(
+    "https://client.example/callback",
+    "code",
+    "opaque-code",
+    Some("opaque-state"),
+    "https://blog.example",
+  )
+  assert_eq(result.contains("code=opaque-code"[:]), true)
+  assert_eq(result.contains("state=opaque-state"[:]), true)
+  assert_eq(result.contains("iss=https%3A%2F%2Fblog.example"[:]), true)
+  let error_result = authorization_redirect_with_issuer(
+    "https://client.example/callback",
+    "error",
+    "invalid_request",
+    Some("opaque-state"),
+    "https://blog.example",
+  )
+  assert_eq(error_result.contains("error=invalid_request"[:]), true)
+  assert_eq(error_result.contains("iss=https%3A%2F%2Fblog.example"[:]), true)
+}
+
+///|
 async test "RFC 7636 S256 known vector" {
   let result = pkce_s256("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
   assert_eq(result, Some("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"))
@@ -480,4 +507,43 @@ test "authorization code and refresh decisions enforce one-time state" {
     refresh_rotation_decision(false, None, None, 101, 100),
     RefreshInvalid,
   )
+}
+
+///|
+test "token form rejects malformed and duplicate security fields" {
+  assert_eq(
+    parse_oauth_token_form("grant_type=authorization_code&code=a&code=b")
+    is None,
+    true,
+  )
+  assert_eq(
+    parse_oauth_token_form("grant_type=authorization_code&code=%") is None,
+    true,
+  )
+  assert_eq(
+    parse_oauth_token_form("grant_type=authorization_code&unknown=value")
+    is None,
+    true,
+  )
+}
+
+///|
+test "token grant validation distinguishes supported grant requirements" {
+  let code = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+  let verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+  let auth = parse_oauth_token_form(
+    "grant_type=authorization_code&code=" +
+    code +
+    "&client_id=https%3A%2F%2Fclient.example%2Fclient.json&redirect_uri=https%3A%2F%2Fclient.example%2Fcallback&resource=https%3A%2F%2Fblog.example%2Fmcp&code_verifier=" +
+    verifier,
+  ).unwrap()
+  assert_eq(validate_oauth_token_request(auth), Some(AuthorizationCode))
+  let refresh = parse_oauth_token_form(
+    "grant_type=refresh_token&refresh_token=" +
+    code +
+    "&client_id=client&resource=https%3A%2F%2Fblog.example%2Fmcp",
+  ).unwrap()
+  assert_eq(validate_oauth_token_request(refresh), Some(RefreshToken))
+  let unsupported = parse_oauth_token_form("grant_type=client_credentials").unwrap()
+  assert_eq(validate_oauth_token_request(unsupported), None)
 }

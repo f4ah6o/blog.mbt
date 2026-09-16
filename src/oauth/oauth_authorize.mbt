@@ -165,6 +165,22 @@ pub fn AuthorizationRequest::code_redirect(
 }
 
 ///|
+/// Construct a successful authorization redirect with the RFC 9207 issuer.
+pub fn AuthorizationRequest::code_redirect_with_issuer(
+  self : AuthorizationRequest,
+  code : String,
+  issuer : String,
+) -> String {
+  authorization_redirect_with_issuer(
+    self.redirect_uri,
+    "code",
+    code,
+    self.state,
+    issuer,
+  )
+}
+
+///|
 /// Validate every authorization request binding against a previously parsed
 /// CIMD document. Redirect URI comparison is deliberately byte-for-byte.
 pub fn validate_authorization_request(
@@ -236,6 +252,27 @@ pub fn authorization_redirect(
 }
 
 ///|
+/// Add the RFC 9207 issuer to a successful authorization response.
+pub fn authorization_redirect_with_issuer(
+  redirect_uri : String,
+  parameter : String,
+  value : String,
+  state : String?,
+  issuer : String,
+) -> String {
+  match state {
+    Some(value_state) =>
+      authorization_redirect_with_issuer_and_state_js(
+        redirect_uri, parameter, value, value_state, issuer,
+      )
+    None =>
+      authorization_redirect_with_issuer_js(
+        redirect_uri, parameter, value, issuer,
+      )
+  }
+}
+
+///|
 extern "js" fn authorization_redirect_js(
   redirect_uri : String,
   parameter : String,
@@ -258,5 +295,35 @@ extern "js" fn authorization_redirect_with_state_js(
   #|   const url = new URL(redirectUri);
   #|   url.searchParams.set(parameter, value);
   #|   url.searchParams.set("state", state);
+  #|   return url.toString();
+  #| }
+
+///|
+extern "js" fn authorization_redirect_with_issuer_js(
+  redirect_uri : String,
+  parameter : String,
+  value : String,
+  issuer : String,
+) -> String =
+  #| (redirectUri, parameter, value, issuer) => {
+  #|   const url = new URL(redirectUri);
+  #|   url.searchParams.set(parameter, value);
+  #|   url.searchParams.set("iss", issuer);
+  #|   return url.toString();
+  #| }
+
+///|
+extern "js" fn authorization_redirect_with_issuer_and_state_js(
+  redirect_uri : String,
+  parameter : String,
+  value : String,
+  state : String,
+  issuer : String,
+) -> String =
+  #| (redirectUri, parameter, value, state, issuer) => {
+  #|   const url = new URL(redirectUri);
+  #|   url.searchParams.set(parameter, value);
+  #|   url.searchParams.set("state", state);
+  #|   url.searchParams.set("iss", issuer);
   #|   return url.toString();
   #| }

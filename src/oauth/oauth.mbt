@@ -115,6 +115,7 @@ pub fn authorization_server_metadata(base_url : String) -> String {
     code_challenge_methods_supported: ["S256"],
     scopes_supported: supported_scopes(),
     client_id_metadata_document_supported: true,
+    authorization_response_iss_parameter_supported: true,
   }
   ToJson::to_json(metadata).stringify()
 }
@@ -137,6 +138,7 @@ struct AuthorizationServerMetadata {
   code_challenge_methods_supported : Array[String]
   scopes_supported : Array[String]
   client_id_metadata_document_supported : Bool
+  authorization_response_iss_parameter_supported : Bool
 } derive(ToJson)
 
 ///|

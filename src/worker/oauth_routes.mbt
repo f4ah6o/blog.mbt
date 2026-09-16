@@ -26,16 +26,21 @@ fn oauth_error_response(
   error : String,
 ) -> @http.Response {
   let redirect_uri = get_search_param(url, "redirect_uri")
+  let issuer = match @oauth.canonical_base_url(@config.SITE_URL) {
+    Some(value) => value
+    None => return json_response("{\"error\":\"server_configuration\"}", 500)
+  }
   match (redirect_uri, client) {
     (Some(candidate), Some(metadata)) if metadata.redirect_uri_allowed(
         candidate,
       ) =>
       redirect_response(
-        @oauth.authorization_redirect(
+        @oauth.authorization_redirect_with_issuer(
           candidate,
           "error",
           error,
           get_search_param(url, "state"),
+          issuer,
         ),
       )
     _ => json_response("{\"error\":\"invalid_request\"}", 400)
@@ -215,7 +220,232 @@ async fn handle_oauth_verify(
   @oauth.insert_authorization_code(db, record) catch {
     _ => return json_response("{\"error\":\"server_error\"}", 500)
   }
-  text_response_js(request.code_redirect(secret), 200)
+  text_response_js(request.code_redirect_with_issuer(secret, issuer), 200)
+}
+
+///|
+fn oauth_token_error(error : String, status : Int) -> @http.Response {
+  token_json_response("{\"error\":\"" + error + "\"}", status)
+}
+
+///|
+fn oauth_token_response(
+  access_token : String,
+  scope : String,
+  expires_in : Int,
+  refresh_token : String?,
+) -> @http.Response {
+  let refresh = match refresh_token {
+    Some(value) => ",\"refresh_token\":" + json_escape(value)
+    None => ""
+  }
+  token_json_response(
+    "{\"token_type\":\"Bearer\",\"access_token\":" +
+    json_escape(access_token) +
+    ",\"expires_in\":" +
+    expires_in.to_string() +
+    ",\"scope\":" +
+    json_escape(scope) +
+    refresh +
+    "}",
+    200,
+  )
+}
+
+///|
+async fn handle_oauth_token(
+  env : @cloudflare.CloudflareEnv,
+  req : @cloudflare.CloudflareRequest,
+) -> @http.Response {
+  let http_req : @http.Request = @core.identity(req)
+  if oauth_content_type(req) != "application/x-www-form-urlencoded" {
+    return oauth_token_error("invalid_request", 400)
+  }
+  let request = match @oauth.parse_oauth_token_form(http_req.text()) {
+    Some(value) => value
+    None => return oauth_token_error("invalid_request", 400)
+  }
+  let grant_type = request.grant_type()
+  if grant_type.is_empty() {
+    return oauth_token_error("invalid_request", 400)
+  }
+  if grant_type != "authorization_code" && grant_type != "refresh_token" {
+    return oauth_token_error("unsupported_grant_type", 400)
+  }
+  let grant = match @oauth.validate_oauth_token_request(request) {
+    Some(value) => value
+    None => return oauth_token_error("invalid_request", 400)
+  }
+  let db_value = get_db_from_env(env)
+  if @core.typeof_(db_value) == "undefined" || @core.is_null(db_value) {
+    return oauth_token_error("server_error", 500)
+  }
+  let db : @cloudflare.D1Database = @core.identity(db_value)
+  let now = oauth_now()
+  match grant {
+    @oauth.TokenGrant::AuthorizationCode => {
+      let code = request.code().unwrap()
+      let client_id = request.client_id().unwrap()
+      let redirect_uri = request.redirect_uri().unwrap()
+      let resource = request.resource().unwrap()
+      let verifier = request.code_verifier().unwrap()
+      if !@oauth.validate_opaque_secret(code) {
+        return oauth_token_error("invalid_grant", 400)
+      }
+      let code_hash = @oauth.sha256_hex(code)
+      let stored_scope = @oauth.authorization_code_scope(
+        db, code_hash, client_id, redirect_uri, resource, verifier, now,
+      ) catch {
+        _ => return oauth_token_error("server_error", 500)
+      }
+      let scope = match stored_scope {
+        Some(value) => value
+        None => return oauth_token_error("invalid_grant", 400)
+      }
+      let access_token = @oauth.generate_opaque_secret()
+      let access_hash = @oauth.sha256_hex(access_token)
+      let access = match
+        @oauth.access_token_record(
+          access_hash,
+          client_id,
+          resource,
+          scope,
+          now,
+          now + @oauth.ACCESS_TOKEN_TTL_SECONDS,
+        ) {
+        Some(value) => value
+        None => return oauth_token_error("server_error", 500)
+      }
+      let refresh_token : String? = if @oauth.scope_contains(
+          scope,
+          @oauth.SCOPE_OFFLINE_ACCESS,
+        ) {
+        Some(@oauth.generate_opaque_secret())
+      } else {
+        None
+      }
+      let refresh = match refresh_token {
+        Some(value) => {
+          let hash = @oauth.sha256_hex(value)
+          match
+            @oauth.refresh_token_record(
+              hash,
+              hash,
+              client_id,
+              resource,
+              scope,
+              now,
+              now + @oauth.REFRESH_TOKEN_TTL_SECONDS,
+            ) {
+            Some(record) => Some(record)
+            None => return oauth_token_error("server_error", 500)
+          }
+        }
+        None => None
+      }
+      let redeemed = @oauth.redeem_authorization_code_with_tokens(
+        db, code_hash, client_id, redirect_uri, resource, verifier, now, access,
+        refresh,
+      ) catch {
+        _ => return oauth_token_error("server_error", 500)
+      }
+      match redeemed {
+        @oauth.RedeemAuthorizationCodeResult::AuthorizationCodeInvalid =>
+          oauth_token_error("invalid_grant", 400)
+        @oauth.RedeemAuthorizationCodeResult::AuthorizationCodeRedeemed(_) =>
+          oauth_token_response(
+            access_token,
+            scope,
+            @oauth.ACCESS_TOKEN_TTL_SECONDS,
+            refresh_token,
+          )
+      }
+    }
+    @oauth.TokenGrant::RefreshToken => {
+      let old_token = request.refresh_token().unwrap()
+      let client_id = request.client_id().unwrap()
+      let resource = request.resource().unwrap()
+      if !@oauth.validate_opaque_secret(old_token) {
+        return oauth_token_error("invalid_grant", 400)
+      }
+      let old_hash = @oauth.sha256_hex(old_token)
+      let current = @oauth.lookup_refresh_token(
+        db, old_hash, client_id, resource, now,
+      ) catch {
+        _ => return oauth_token_error("server_error", 500)
+      }
+      match current {
+        Some(current) => {
+          let scope = current.scope()
+          let replacement = @oauth.generate_opaque_secret()
+          let replacement_hash = @oauth.sha256_hex(replacement)
+          let access_token = @oauth.generate_opaque_secret()
+          let access_hash = @oauth.sha256_hex(access_token)
+          let access = match
+            @oauth.access_token_record(
+              access_hash,
+              client_id,
+              resource,
+              scope,
+              now,
+              now + @oauth.ACCESS_TOKEN_TTL_SECONDS,
+            ) {
+            Some(value) => value
+            None => return oauth_token_error("server_error", 500)
+          }
+          let rotation = @oauth.rotate_refresh_token_with_access(
+            db,
+            old_hash,
+            client_id,
+            resource,
+            replacement_hash,
+            now,
+            now + @oauth.REFRESH_TOKEN_TTL_SECONDS,
+            now,
+            access,
+          ) catch {
+            _ => return oauth_token_error("server_error", 500)
+          }
+          match rotation {
+            @oauth.RefreshRotationDecision::RefreshReplay => {
+              @oauth.revoke_refresh_family_for_token(
+                db, old_hash, client_id, resource, now,
+              ) catch {
+                _ => return oauth_token_error("server_error", 500)
+              }
+              oauth_token_error("invalid_grant", 400)
+            }
+            @oauth.RefreshRotationDecision::RefreshInvalid =>
+              oauth_token_error("invalid_grant", 400)
+            @oauth.RefreshRotationDecision::RefreshRotated =>
+              oauth_token_response(
+                access_token,
+                scope,
+                @oauth.ACCESS_TOKEN_TTL_SECONDS,
+                Some(replacement),
+              )
+          }
+        }
+        None => {
+          let replay = @oauth.refresh_token_replay_detected(
+            db, old_hash, client_id, resource,
+          ) catch {
+            _ => return oauth_token_error("server_error", 500)
+          }
+          if replay {
+            @oauth.revoke_refresh_family_for_token(
+              db, old_hash, client_id, resource, now,
+            ) catch {
+              _ => return oauth_token_error("server_error", 500)
+            }
+            oauth_token_error("invalid_grant", 400)
+          } else {
+            oauth_token_error("invalid_grant", 400)
+          }
+        }
+      }
+    }
+  }
 }
 
 ///|
@@ -230,6 +460,8 @@ pub async fn handle_oauth_request(
     Some(handle_oauth_authorize(env, url))
   } else if pathname == "/oauth/authorize/verify" && http_method == "POST" {
     Some(handle_oauth_verify(env, req))
+  } else if pathname == "/oauth/token" && http_method == "POST" {
+    Some(handle_oauth_token(env, req))
   } else {
     None
   }
@@ -242,3 +474,16 @@ extern "js" fn redirect_response(location : String) -> @http.Response =
 ///|
 extern "js" fn oauth_now() -> Int =
   #| () => Math.floor(Date.now() / 1000)
+
+///|
+extern "js" fn oauth_content_type(
+  req : @cloudflare.CloudflareRequest,
+) -> String =
+  #| (request) => (request.headers.get("content-type") || "").split(";", 1)[0].trim().toLowerCase()
+
+///|
+extern "js" fn token_json_response(
+  body : String,
+  status : Int,
+) -> @http.Response =
+  #| (body, status) => new Response(body, { status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "Pragma": "no-cache" } })
