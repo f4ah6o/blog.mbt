@@ -90,13 +90,13 @@ async fn handle_login_options(
     None =>
       return json_response("{\"error\":\"ADMIN_USER_ID not configured\"}", 500)
   }
-  let rp_id = match get_rp_id(env) {
+  let rp_id = match @identity.get_rp_id(env) {
     Some(id) => id
     None => return json_response("{\"error\":\"RP_ID not configured\"}", 500)
   }
   //
   // Generate authentication options
-  let options = generate_auth_options(kv, user_id, rp_id)
+  let options = @identity.generate_auth_options(kv, user_id, rp_id)
   //
   // Return as JSON
   let json_str = options.to_json().stringify()
@@ -116,11 +116,11 @@ async fn handle_login_verify(
     None =>
       return json_response("{\"error\":\"ADMIN_USER_ID not configured\"}", 500)
   }
-  let rp_id = match get_rp_id(env) {
+  let rp_id = match @identity.get_rp_id(env) {
     Some(id) => id
     None => return json_response("{\"error\":\"RP_ID not configured\"}", 500)
   }
-  let origin = match get_rp_origin(env) {
+  let origin = match @identity.get_rp_origin(env) {
     Some(o) => o
     None =>
       return json_response("{\"error\":\"RP_ORIGIN not configured\"}", 500)
@@ -143,22 +143,24 @@ async fn handle_login_verify(
   }
   //
   // Verify authentication
-  let result = verify_authentication(kv, user_id, rp_id, origin, request)
+  let result = @identity.verify_authentication(
+    kv, user_id, rp_id, origin, request,
+  )
   match result {
-    AuthVerifyResult::Success(_counter) => {
+    @identity.AuthVerifyResult::Success(_counter) => {
       // Create JWT session token
       let jwt = create_session_token(user_id, jwt_secret, jwt_expires_in)
       // Return success with session cookie
-      let secure_cookie = should_use_secure_cookie(env)
+      let secure_cookie = @identity.should_use_secure_cookie(env)
       json_response_with_session_cookie(
         "{\"success\":true}", 200, jwt, jwt_expires_in, secure_cookie,
       )
     }
-    AuthVerifyResult::ChallengeInvalid =>
+    @identity.AuthVerifyResult::ChallengeInvalid =>
       json_response("{\"error\":\"Challenge invalid or expired\"}", 401)
-    AuthVerifyResult::CredentialNotFound =>
+    @identity.AuthVerifyResult::CredentialNotFound =>
       json_response("{\"error\":\"Credential not found\"}", 401)
-    AuthVerifyResult::VerificationFailed(msg) =>
+    @identity.AuthVerifyResult::VerificationFailed(msg) =>
       json_response("{\"error\":\"Verification failed: " + msg + "\"}", 401)
   }
 }
@@ -175,17 +177,19 @@ async fn handle_register_options(
     None =>
       return json_response("{\"error\":\"ADMIN_USER_ID not configured\"}", 500)
   }
-  let rp_id = match get_rp_id(env) {
+  let rp_id = match @identity.get_rp_id(env) {
     Some(id) => id
     None => return json_response("{\"error\":\"RP_ID not configured\"}", 500)
   }
-  let rp_name = match get_rp_name(env) {
+  let rp_name = match @identity.get_rp_name(env) {
     Some(n) => n
     None => return json_response("{\"error\":\"RP_NAME not configured\"}", 500)
   }
   //
   // Generate registration options (use user_id as display name too)
-  let options = generate_reg_options(kv, user_id, user_id, rp_id, rp_name)
+  let options = @identity.generate_reg_options(
+    kv, user_id, user_id, rp_id, rp_name,
+  )
   //
   // Return as JSON
   let json_str = options.to_json().stringify()
@@ -205,11 +209,11 @@ async fn handle_register_verify(
     None =>
       return json_response("{\"error\":\"ADMIN_USER_ID not configured\"}", 500)
   }
-  let rp_id = match get_rp_id(env) {
+  let rp_id = match @identity.get_rp_id(env) {
     Some(id) => id
     None => return json_response("{\"error\":\"RP_ID not configured\"}", 500)
   }
-  let origin = match get_rp_origin(env) {
+  let origin = match @identity.get_rp_origin(env) {
     Some(o) => o
     None =>
       return json_response("{\"error\":\"RP_ORIGIN not configured\"}", 500)
@@ -234,12 +238,15 @@ async fn handle_register_verify(
   }
   //
   // Verify registration
-  let result = verify_registration(kv, user_id, rp_id, origin, request)
+  let result = @identity.verify_registration(
+    kv, user_id, rp_id, origin, request,
+  )
   match result {
-    RegVerifyResult::Success => json_response("{\"success\":true}", 200)
-    RegVerifyResult::ChallengeInvalid =>
+    @identity.RegVerifyResult::Success =>
+      json_response("{\"success\":true}", 200)
+    @identity.RegVerifyResult::ChallengeInvalid =>
       json_response("{\"error\":\"Challenge invalid or expired\"}", 401)
-    RegVerifyResult::VerificationFailed(msg) =>
+    @identity.RegVerifyResult::VerificationFailed(msg) =>
       json_response("{\"error\":\"Verification failed: " + msg + "\"}", 401)
   }
 }
@@ -247,7 +254,7 @@ async fn handle_register_verify(
 ///|
 /// Handle POST /admin/logout
 fn handle_logout(env : @cloudflare.CloudflareEnv) -> @http.Response {
-  let secure_cookie = should_use_secure_cookie(env)
+  let secure_cookie = @identity.should_use_secure_cookie(env)
   redirect_with_logout_cookie("/admin/login", secure_cookie)
 }
 

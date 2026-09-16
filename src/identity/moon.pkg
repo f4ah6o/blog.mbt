@@ -1,0 +1,9 @@
+import {
+  "mizchi/cloudflare",
+  "mizchi/js/core",
+  "moonbitlang/core/json",
+  "f4ah6o/simple-webauthn/server" @webauthn_server,
+  "f4ah6o/simple-webauthn/helpers" @webauthn_helpers,
+}
+
+supported_targets = "js"

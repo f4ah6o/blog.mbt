@@ -116,38 +116,6 @@ fn as_http_request(req : @cloudflare.CloudflareRequest) -> @http.Request {
 }
 
 // =============================================================================
-// KV Operations (Cloudflare Workers KV)
-// =============================================================================
-
-///|
-/// Get value from KV namespace
-extern "js" fn kv_get(kv : @core.Any, key : String) -> @core.Promise[String?] =
-  #| async (kv, key) => {
-  #|   const value = await kv.get(key, "text");
-  #|   return value === null ? undefined : value;
-  #| }
-
-///|
-/// Put value to KV namespace with optional TTL (in seconds)
-extern "js" fn kv_put(
-  kv : @core.Any,
-  key : String,
-  value : String,
-  ttl_seconds : Int,
-) -> @core.Promise[Unit] =
-  #| async (kv, key, value, ttlSeconds) => {
-  #|   const options = ttlSeconds > 0 ? { expirationTtl: ttlSeconds } : {};
-  #|   await kv.put(key, value, options);
-  #| }
-
-///|
-/// Delete value from KV namespace
-extern "js" fn kv_delete(kv : @core.Any, key : String) -> @core.Promise[Unit] =
-  #| async (kv, key) => {
-  #|   await kv.delete(key);
-  #| }
-
-// =============================================================================
 // JWT Operations (HS256 using Web Crypto API)
 // =============================================================================
 

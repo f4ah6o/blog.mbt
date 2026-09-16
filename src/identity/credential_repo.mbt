@@ -24,7 +24,7 @@ let challenge_ttl_seconds : Int = 300
 
 ///|
 /// Stored credential in KV
-struct StoredCredential {
+pub struct StoredCredential {
   /// Credential ID (base64url encoded)
   id : String
   /// Public key (base64url encoded)
@@ -41,7 +41,7 @@ struct StoredCredential {
 
 ///|
 /// Challenge stored in KV
-struct StoredChallenge {
+pub struct StoredChallenge {
   /// The actual challenge bytes (base64url encoded)
   challenge : String
   /// Type of challenge: "registration" or "authentication"
@@ -62,7 +62,7 @@ fn build_credentials_key(user_id : String) -> String {
 
 ///|
 /// Get all credentials for a user
-async fn get_credentials(
+pub async fn get_credentials(
   kv : @core.Any,
   user_id : String,
 ) -> Array[StoredCredential] {
@@ -81,7 +81,7 @@ async fn get_credentials(
 
 ///|
 /// Save credentials for a user (replaces all existing)
-async fn save_credentials(
+pub async fn save_credentials(
   kv : @core.Any,
   user_id : String,
   credentials : Array[StoredCredential],
@@ -94,7 +94,7 @@ async fn save_credentials(
 
 ///|
 /// Add a new credential for a user
-async fn add_credential(
+pub async fn add_credential(
   kv : @core.Any,
   user_id : String,
   credential : StoredCredential,
@@ -107,7 +107,7 @@ async fn add_credential(
 
 ///|
 /// Find a credential by ID
-async fn find_credential_by_id(
+pub async fn find_credential_by_id(
   kv : @core.Any,
   user_id : String,
   credential_id : String,
@@ -123,7 +123,7 @@ async fn find_credential_by_id(
 
 ///|
 /// Update credential counter after successful authentication
-async fn update_credential_counter(
+pub async fn update_credential_counter(
   kv : @core.Any,
   user_id : String,
   credential_id : String,
@@ -161,7 +161,7 @@ fn build_challenge_key(user_id : String, challenge_id : String) -> String {
 
 ///|
 /// Save a challenge to KV with TTL
-async fn save_challenge(
+pub async fn save_challenge(
   kv : @core.Any,
   user_id : String,
   challenge_id : String,
@@ -181,7 +181,7 @@ async fn save_challenge(
 
 ///|
 /// Get a challenge from KV (validates expiration)
-async fn get_challenge(
+pub async fn get_challenge(
   kv : @core.Any,
   user_id : String,
   challenge_id : String,
@@ -209,7 +209,7 @@ async fn get_challenge(
 
 ///|
 /// Delete a challenge from KV
-async fn delete_challenge(
+pub async fn delete_challenge(
   kv : @core.Any,
   user_id : String,
   challenge_id : String,
@@ -221,7 +221,7 @@ async fn delete_challenge(
 ///|
 /// Verify and consume a challenge (get + delete in one operation)
 /// Returns the challenge if valid, None if not found or expired
-async fn consume_challenge(
+pub async fn consume_challenge(
   kv : @core.Any,
   user_id : String,
   challenge_id : String,

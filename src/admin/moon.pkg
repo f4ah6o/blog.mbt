@@ -6,8 +6,7 @@ import {
   "moonbitlang/core/string",
   "moonbitlang/core/json",
   "f4ah6o/blog.mbt/tmpx_compat" @tmpx,
-  "f4ah6o/simple-webauthn/server" @webauthn_server,
-  "f4ah6o/simple-webauthn/helpers" @webauthn_helpers,
+  "f4ah6o/blog.mbt/identity",
 }
 
 supported_targets = "js"

@@ -70,35 +70,7 @@ fn get_jwt_expires_in(env : @cloudflare.CloudflareEnv) -> Int {
 }
 
 ///|
-/// Get Relying Party ID (domain)
-fn get_rp_id(env : @cloudflare.CloudflareEnv) -> String? {
-  get_env_string(env, "RP_ID")
-}
-
-///|
-/// Get Relying Party name
-fn get_rp_name(env : @cloudflare.CloudflareEnv) -> String? {
-  get_env_string(env, "RP_NAME")
-}
-
-///|
-/// Get Relying Party origin (e.g., https://example.com)
-fn get_rp_origin(env : @cloudflare.CloudflareEnv) -> String? {
-  get_env_string(env, "RP_ORIGIN")
-}
-
-///|
 /// Get admin setup token for registration
 fn get_admin_setup_token(env : @cloudflare.CloudflareEnv) -> String? {
   get_env_string(env, "ADMIN_SETUP_TOKEN")
-}
-
-///|
-/// Determine whether to include Secure flag on cookies.
-/// Uses RP_ORIGIN to decide; HTTPS origins get Secure.
-fn should_use_secure_cookie(env : @cloudflare.CloudflareEnv) -> Bool {
-  match get_rp_origin(env) {
-    Some(origin) => origin.has_prefix("https://")
-    None => true
-  }
 }

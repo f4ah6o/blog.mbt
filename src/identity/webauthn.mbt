@@ -8,7 +8,7 @@
 
 ///|
 /// Authentication options response (sent to browser)
-struct AuthOptionsResponse {
+pub struct AuthOptionsResponse {
   /// The challenge bytes (base64url encoded)
   challenge : String
   /// Server-generated challenge ID for verification
@@ -25,7 +25,7 @@ struct AuthOptionsResponse {
 
 ///|
 /// Registration options response (sent to browser)
-struct RegOptionsResponse {
+pub struct RegOptionsResponse {
   /// The challenge bytes (base64url encoded)
   challenge : String
   /// Server-generated challenge ID for verification
@@ -48,7 +48,7 @@ struct RegOptionsResponse {
 
 ///|
 /// Credential descriptor for allow/exclude lists (JavaScript-friendly format)
-struct CredentialDescriptorJS {
+pub struct CredentialDescriptorJS {
   id : String
   type_ : String
   transports : Array[String]
@@ -66,14 +66,14 @@ impl ToJson for CredentialDescriptorJS with fn to_json(self) {
 
 ///|
 /// Relying Party info for registration (JavaScript-friendly format)
-struct RelyingPartyInfoJS {
+pub struct RelyingPartyInfoJS {
   id : String
   name : String
 } derive(Debug, ToJson)
 
 ///|
 /// User info for registration (JavaScript-friendly format)
-struct UserInfoJS {
+pub struct UserInfoJS {
   id : String
   name : String
   display_name : String
@@ -91,7 +91,7 @@ impl ToJson for UserInfoJS with fn to_json(self) {
 
 ///|
 /// Public key credential parameters (JavaScript-friendly format)
-struct PubKeyCredParamJS {
+pub struct PubKeyCredParamJS {
   type_ : String
   alg : Int
 } derive(Debug)
@@ -107,7 +107,7 @@ impl ToJson for PubKeyCredParamJS with fn to_json(self) {
 
 ///|
 /// Authenticator selection criteria (JavaScript-friendly format)
-struct AuthenticatorSelectionJS {
+pub struct AuthenticatorSelectionJS {
   authenticator_attachment : String?
   resident_key : String
   user_verification : String
@@ -133,7 +133,7 @@ impl ToJson for AuthenticatorSelectionJS with fn to_json(self) {
 ///|
 /// Generate authentication options for WebAuthn login.
 /// Saves challenge to KV and returns options for the browser.
-async fn generate_auth_options(
+pub async fn generate_auth_options(
   kv : @core.Any,
   user_id : String,
   rp_id : String,
@@ -173,7 +173,7 @@ async fn generate_auth_options(
 ///|
 /// Generate registration options for WebAuthn credential creation.
 /// Saves challenge to KV and returns options for the browser.
-async fn generate_reg_options(
+pub async fn generate_reg_options(
   kv : @core.Any,
   user_id : String,
   user_name : String,
@@ -226,7 +226,7 @@ async fn generate_reg_options(
 
 ///|
 /// Authentication verification request from browser
-struct AuthVerifyRequest {
+pub struct AuthVerifyRequest {
   challenge_id : String
   credential_id : String
   raw_id : String
@@ -237,7 +237,7 @@ struct AuthVerifyRequest {
 
 ///|
 /// Result of authentication verification
-priv enum AuthVerifyResult {
+pub enum AuthVerifyResult {
   /// Authentication succeeded
   Success(UInt) // new counter value
   /// Challenge not found or expired
@@ -250,7 +250,7 @@ priv enum AuthVerifyResult {
 
 ///|
 /// Verify authentication response from browser.
-async fn verify_authentication(
+pub async fn verify_authentication(
   kv : @core.Any,
   user_id : String,
   rp_id : String,
@@ -340,7 +340,7 @@ async fn verify_authentication(
 
 ///|
 /// Registration verification request from browser
-struct RegVerifyRequest {
+pub struct RegVerifyRequest {
   challenge_id : String
   credential_id : String
   raw_id : String
@@ -352,7 +352,7 @@ struct RegVerifyRequest {
 
 ///|
 /// Result of registration verification
-priv enum RegVerifyResult {
+pub enum RegVerifyResult {
   /// Registration succeeded
   Success
   /// Challenge not found or expired
@@ -363,7 +363,7 @@ priv enum RegVerifyResult {
 
 ///|
 /// Verify registration response from browser.
-async fn verify_registration(
+pub async fn verify_registration(
   kv : @core.Any,
   user_id : String,
   rp_id : String,
