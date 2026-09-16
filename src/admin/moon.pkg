@@ -3,7 +3,7 @@ import {
   "mizchi/cloudflare",
   "mizchi/js/core",
   "mizchi/js/web/http",
-  "moonbitlang/core/strconv",
+  "moonbitlang/core/string",
   "moonbitlang/core/json",
   "f4ah6o/blog.mbt/tmpx_compat" @tmpx,
   "f4ah6o/simple-webauthn/server" @webauthn_server,

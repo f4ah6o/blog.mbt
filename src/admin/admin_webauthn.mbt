@@ -21,7 +21,7 @@ struct AuthOptionsResponse {
   allow_credentials : Array[CredentialDescriptorJS]
   /// User verification requirement
   user_verification : String
-} derive(Show, ToJson)
+} derive(Debug, ToJson)
 
 ///|
 /// Registration options response (sent to browser)
@@ -44,7 +44,7 @@ struct RegOptionsResponse {
   authenticator_selection : AuthenticatorSelectionJS
   /// Attestation conveyance preference
   attestation : String
-} derive(Show, ToJson)
+} derive(Debug, ToJson)
 
 ///|
 /// Credential descriptor for allow/exclude lists (JavaScript-friendly format)
@@ -52,12 +52,12 @@ struct CredentialDescriptorJS {
   id : String
   type_ : String
   transports : Array[String]
-} derive(Show, FromJson)
+} derive(Debug, FromJson)
 
 ///|
 /// ToJson impl for CredentialDescriptorJS to use "type" instead of "type_"
 impl ToJson for CredentialDescriptorJS with fn to_json(self) {
-  let obj : Map[String, Json] = {}
+  let obj : Map[String, Json] = Map([])
   obj["id"] = self.id.to_json()
   obj["type"] = self.type_.to_json()
   obj["transports"] = Json::array(self.transports.map(fn(t) { t.to_json() }))
@@ -69,7 +69,7 @@ impl ToJson for CredentialDescriptorJS with fn to_json(self) {
 struct RelyingPartyInfoJS {
   id : String
   name : String
-} derive(Show, ToJson)
+} derive(Debug, ToJson)
 
 ///|
 /// User info for registration (JavaScript-friendly format)
@@ -77,12 +77,12 @@ struct UserInfoJS {
   id : String
   name : String
   display_name : String
-} derive(Show)
+} derive(Debug)
 
 ///|
 /// ToJson impl for UserInfoJS to use "displayName" instead of "display_name"
 impl ToJson for UserInfoJS with fn to_json(self) {
-  let obj : Map[String, Json] = {}
+  let obj : Map[String, Json] = Map([])
   obj["id"] = self.id.to_json()
   obj["name"] = self.name.to_json()
   obj["displayName"] = self.display_name.to_json()
@@ -94,12 +94,12 @@ impl ToJson for UserInfoJS with fn to_json(self) {
 struct PubKeyCredParamJS {
   type_ : String
   alg : Int
-} derive(Show)
+} derive(Debug)
 
 ///|
 /// ToJson impl for PubKeyCredParamJS to use "type" instead of "type_"
 impl ToJson for PubKeyCredParamJS with fn to_json(self) {
-  let obj : Map[String, Json] = {}
+  let obj : Map[String, Json] = Map([])
   obj["type"] = self.type_.to_json()
   obj["alg"] = self.alg.to_json()
   Json::object(obj)
@@ -111,12 +111,12 @@ struct AuthenticatorSelectionJS {
   authenticator_attachment : String?
   resident_key : String
   user_verification : String
-} derive(Show)
+} derive(Debug)
 
 ///|
 /// ToJson impl for AuthenticatorSelectionJS with camelCase keys
 impl ToJson for AuthenticatorSelectionJS with fn to_json(self) {
-  let obj : Map[String, Json] = {}
+  let obj : Map[String, Json] = Map([])
   obj["residentKey"] = self.resident_key.to_json()
   obj["userVerification"] = self.user_verification.to_json()
   match self.authenticator_attachment {
@@ -145,7 +145,7 @@ async fn generate_auth_options(
   let allow_credentials : Array[CredentialDescriptorJS] = stored_creds.map(fn(
     cred : StoredCredential,
   ) {
-    { id: cred.id, type_: "public-key", transports: cred.transports }
+    { id: cred.id, type_: "public-key", transports: cred.transports, }
   })
   //
   // Generate random challenge (16 bytes)
@@ -185,7 +185,7 @@ async fn generate_reg_options(
   let exclude_credentials : Array[CredentialDescriptorJS] = stored_creds.map(fn(
     cred : StoredCredential,
   ) {
-    { id: cred.id, type_: "public-key", transports: cred.transports }
+    { id: cred.id, type_: "public-key", transports: cred.transports, }
   })
   //
   // Generate random challenge
@@ -204,11 +204,11 @@ async fn generate_reg_options(
     challenge,
     challenge_id,
     timeout: 60000,
-    rp: { id: rp_id, name: rp_name },
-    user: { id: user_id_b64, name: user_name, display_name: user_name },
+    rp: { id: rp_id, name: rp_name, },
+    user: { id: user_id_b64, name: user_name, display_name: user_name, },
     pub_key_cred_params: [
-      { type_: "public-key", alg: -7 }, // ES256
-      { type_: "public-key", alg: -257 }, // RS256
+      { type_: "public-key", alg: -7, }, // ES256
+      { type_: "public-key", alg: -257, }, // RS256
     ],
     exclude_credentials,
     authenticator_selection: {
@@ -233,7 +233,7 @@ struct AuthVerifyRequest {
   client_data_json : String
   authenticator_data : String
   signature : String
-} derive(Show, FromJson)
+} derive(Debug, FromJson)
 
 ///|
 /// Result of authentication verification
@@ -348,7 +348,7 @@ struct RegVerifyRequest {
   attestation_object : String
   /// Optional human-readable name for the credential
   credential_name : String?
-} derive(Show, FromJson)
+} derive(Debug, FromJson)
 
 ///|
 /// Result of registration verification
@@ -405,41 +405,38 @@ async fn verify_registration(
   )
   //
   // 4. Verify using simple-webauthn
-  let verify_result : Result[@webauthn_server.VerifiedRegistration, _] = try? @webauthn_server.verify_registration_response(
+  let verified = @webauthn_server.verify_registration_response(
     client_data_json_bytes, attestation_object_bytes, verify_options,
-  )
-  match verify_result {
-    Err(e) => VerificationFailed(reg_error_to_string(e))
-    Ok(verified) => {
-      // 5. Store the new credential
-      let now_str = now_iso()
-      let credential_name = match request.credential_name {
-        Some(n) if n != "" => n
-        _ => {
-          // Default name with date
-          let date_part = if now_str.length() >= 10 {
-            now_str[:10].to_string()
-          } else {
-            now_str
-          }
-          "Passkey " + date_part
-        }
+  ) catch {
+    e => return VerificationFailed(reg_error_to_string(e))
+  }
+  // 5. Store the new credential
+  let now_str = now_iso()
+  let credential_name = match request.credential_name {
+    Some(n) if n != "" => n
+    _ => {
+      // Default name with date
+      let date_part = if now_str.length() >= 10 {
+        now_str[:10].to_owned()
+      } else {
+        now_str
       }
-      let new_cred : StoredCredential = {
-        id: request.credential_id,
-        public_key: @webauthn_helpers.base64url_encode(
-          verified.credential_public_key,
-        ),
-        counter: verified.sign_count,
-        transports: [], // Browser doesn't always provide these
-        name: credential_name,
-        created_at: now_str,
-      }
-      // async fn - call directly
-      add_credential(kv, user_id, new_cred)
-      Success
+      "Passkey " + date_part
     }
   }
+  let new_cred : StoredCredential = {
+    id: request.credential_id,
+    public_key: @webauthn_helpers.base64url_encode(
+      verified.credential_public_key,
+    ),
+    counter: verified.sign_count,
+    transports: [], // Browser doesn't always provide these
+    name: credential_name,
+    created_at: now_str,
+  }
+  // async fn - call directly
+  add_credential(kv, user_id, new_cred)
+  Success
 }
 
 // =============================================================================
@@ -538,9 +535,6 @@ extern "js" fn generate_random_challenge() -> String =
 ///|
 /// Decode a base64url string to bytes
 fn decode_base64url(s : String) -> Bytes? {
-  let result = try? @webauthn_helpers.base64url_decode(s)
-  match result {
-    Ok(bytes) => Some(bytes)
-    Err(_) => None
-  }
+  let bytes = @webauthn_helpers.base64url_decode(s) catch { _ => return None }
+  Some(bytes)
 }

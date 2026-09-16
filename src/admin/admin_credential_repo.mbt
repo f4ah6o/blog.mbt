@@ -37,7 +37,7 @@ struct StoredCredential {
   name : String
   /// Creation timestamp (ISO 8601)
   created_at : String
-} derive(Show, ToJson, FromJson)
+} derive(Debug, ToJson, FromJson)
 
 ///|
 /// Challenge stored in KV
@@ -48,7 +48,7 @@ struct StoredChallenge {
   challenge_type : String
   /// Expiration timestamp (Unix seconds)
   expires_at : Int
-} derive(Show, ToJson, FromJson)
+} derive(Debug, ToJson, FromJson)
 
 // =============================================================================
 // Credential Operations
@@ -71,18 +71,9 @@ async fn get_credentials(
   match value {
     None => []
     Some(json_str) => {
-      let parsed_result : Result[Json, _] = try? @json.parse(json_str)
-      match parsed_result {
-        Err(_) => []
-        Ok(json) => {
-          let creds_result : Result[Array[StoredCredential], _] = try? @json.from_json(
-            json,
-          )
-          match creds_result {
-            Ok(creds) => creds
-            Err(_) => []
-          }
-        }
+      let json = @json.parse(json_str) catch { _ => return [] }
+      @json.from_json(json) catch {
+        _ => []
       }
     }
   }
@@ -200,28 +191,18 @@ async fn get_challenge(
   match value {
     None => None
     Some(json_str) => {
-      let parsed_result : Result[Json, _] = try? @json.parse(json_str)
-      match parsed_result {
-        Err(_) => None
-        Ok(json) => {
-          let stored_result : Result[StoredChallenge, _] = try? @json.from_json(
-            json,
-          )
-          match stored_result {
-            Ok(stored) => {
-              // Check if expired
-              let now = now_unix_seconds()
-              if now > stored.expires_at {
-                // Expired, delete and return None
-                let _ : Unit = delete_challenge(kv, user_id, challenge_id) // async fn
-                return None
-              }
-              Some(stored)
-            }
-            Err(_) => None
-          }
-        }
+      let json = @json.parse(json_str) catch { _ => return None }
+      let stored : StoredChallenge = @json.from_json(json) catch {
+        _ => return None
       }
+      // Check if expired
+      let now = now_unix_seconds()
+      if now > stored.expires_at {
+        // Expired, delete and return None
+        let _ : Unit = delete_challenge(kv, user_id, challenge_id) // async fn
+        return None
+      }
+      Some(stored)
     }
   }
 }

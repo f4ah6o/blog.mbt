@@ -21,5 +21,5 @@ pub fn BlogPost::new(
   published_at : String,
   updated_at : String,
 ) -> BlogPost {
-  { id, title, slug, excerpt, content, slide_flag, published_at, updated_at }
+  { id, title, slug, excerpt, content, slide_flag, published_at, updated_at, }
 }

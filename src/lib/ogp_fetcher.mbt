@@ -9,7 +9,7 @@ pub struct OgpData {
 
 ///|
 pub fn OgpData::empty() -> OgpData {
-  { title: "", description: "", image: "", site_name: "", url: "" }
+  { title: "", description: "", image: "", site_name: "", url: "", }
 }
 
 ///|
@@ -54,7 +54,7 @@ pub fn parse_ogp_from_html(html : String) -> OgpData {
     Some(v) => url = v
     None => ()
   }
-  { title, description, image, site_name, url }
+  { title, description, image, site_name, url, }
 }
 
 ///|

@@ -1,0 +1,15 @@
+name = "mizchi/cbor"
+
+version = "0.1.1"
+
+readme = "README.md"
+
+repository = "https://github.com/mizchi/cbor.mbt"
+
+license = "MIT"
+
+keywords = [ "cbor", "serialization", "encoding" ]
+
+description = "CBOR (RFC 8949) implementation for MoonBit - Pure and FFI versions"
+
+preferred_target = "native"

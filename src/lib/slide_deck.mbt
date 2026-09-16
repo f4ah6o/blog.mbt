@@ -106,7 +106,7 @@ fn join_lines(lines : Array[String], start : Int) -> String {
   if start >= lines.length() {
     return ""
   }
-  let sb = StringBuilder::new()
+  let sb = StringBuilder()
   let mut first = true
   for i = start; i < lines.length(); i = i + 1 {
     if !first {
@@ -141,7 +141,7 @@ pub fn parse_slide_front_matter(
 ) -> Result[SlideSource, String] {
   let lines = slide_split_lines(content)
   if lines.length() == 0 || trim_to_string(lines[0]) != "---" {
-    return Ok({ slide_theme: "classic", body: content })
+    return Ok({ slide_theme: "classic", body: content, })
   }
 
   let mut closing_idx : Int? = None
@@ -184,7 +184,7 @@ pub fn parse_slide_front_matter(
     return Err("Unknown slide theme: " + slide_theme)
   }
 
-  Ok({ slide_theme, body: join_lines(lines, end_idx + 1) })
+  Ok({ slide_theme, body: join_lines(lines, end_idx + 1), })
 }
 
 ///|
@@ -261,11 +261,14 @@ pub fn parse_slides(
   }
 
   if seen_h2 || has_non_blank(current_lines) {
-    slides.push({ title: current_title, lines: trim_blank_edges(current_lines) })
+    slides.push({
+      title: current_title,
+      lines: trim_blank_edges(current_lines),
+    })
   }
 
   if slides.length() == 0 {
-    [{ title: fallback_title, lines: [] }]
+    [{ title: fallback_title, lines: [], }]
   } else {
     slides
   }
@@ -298,7 +301,7 @@ pub fn validate_slide_markdown(content : String) -> String? {
 
 ///|
 fn escape_xml(value : String) -> String {
-  let sb = StringBuilder::new()
+  let sb = StringBuilder()
   for ch in value {
     match ch {
       '&' => sb.write_string("&amp;")
@@ -426,7 +429,7 @@ fn render_lines_from_slide(
   for raw_line in slide.lines {
     let trimmed = trim_to_string(raw_line)
     if trimmed == "" {
-      lines.push({ is_blank: true, is_bullet: false, text: "" })
+      lines.push({ is_blank: true, is_bullet: false, text: "", })
       continue
     }
 
@@ -438,7 +441,7 @@ fn render_lines_from_slide(
     }
 
     for wrapped in wrap_text(body_text, wrap_chars) {
-      lines.push({ is_blank: false, is_bullet, text: wrapped })
+      lines.push({ is_blank: false, is_bullet, text: wrapped, })
     }
   }
   lines
@@ -539,7 +542,7 @@ fn truncate_lines_for_height(
         text: append_ellipsis(line.text, wrap_chars),
       }
     }
-    None => rendered.push({ is_blank: false, is_bullet: false, text: "…" })
+    None => rendered.push({ is_blank: false, is_bullet: false, text: "…", })
   }
 
   (rendered, true)
@@ -558,7 +561,7 @@ fn build_slide_layout(slide : SlideContent, theme : SlideTheme) -> SlideLayout {
     let body_start_y = theme.padding_y + title_size + 48
     let lines = render_lines_from_slide(slide, wrap_chars)
     if can_render_all_lines(lines, body_start_y, line_height, bottom_limit) {
-      return { title_size, body_size, line_height, lines }
+      return { title_size, body_size, line_height, lines, }
     }
   }
 
@@ -571,7 +574,7 @@ fn build_slide_layout(slide : SlideContent, theme : SlideTheme) -> SlideLayout {
   let (clamped_lines, _) = truncate_lines_for_height(
     lines, body_start_y, line_height, bottom_limit, wrap_chars,
   )
-  { title_size, body_size, line_height, lines: clamped_lines }
+  { title_size, body_size, line_height, lines: clamped_lines, }
 }
 
 ///|
@@ -581,7 +584,7 @@ fn render_slide_svg(
   total : Int,
   theme : SlideTheme,
 ) -> String {
-  let sb = StringBuilder::new()
+  let sb = StringBuilder()
   let title = if slide.title == "" { "Slide" } else { slide.title }
   let layout = build_slide_layout(slide, theme)
   let body_x = theme.padding_x
@@ -744,7 +747,7 @@ pub fn render_slide_deck_page(
     None => source.slide_theme
   }
 
-  let sb = StringBuilder::new()
+  let sb = StringBuilder()
   sb.write_string("<!DOCTYPE html><html lang=\"en\"><head>")
   sb.write_string("<meta charset=\"utf-8\"/>")
   sb.write_string(

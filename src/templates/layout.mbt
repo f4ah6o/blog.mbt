@@ -20,10 +20,10 @@ fn abs_url(path_or_url : String) -> String {
       // Remove leading slash from path using pattern matching
       let path_view = path_or_url.view()
       match path_view {
-        ['/', .. rest] => base + rest.to_string()
+        ['/', .. rest] => base + rest.to_owned()
         _ => base + path_or_url
       }
-    } else if not(base.has_suffix("/")) && not(path_or_url.has_prefix("/")) {
+    } else if !base.has_suffix("/") && !path_or_url.has_prefix("/") {
       base + "/" + path_or_url
     } else {
       base + path_or_url
@@ -36,7 +36,7 @@ fn abs_url(path_or_url : String) -> String {
 /// - Removes markdown syntax (simple approach)
 /// - Limits length to ~200 chars
 /// - Collapses whitespace
-fn normalize_description(text : String) -> String raise {
+fn normalize_description(text : String) -> String {
   // Remove common markdown patterns
   let cleaned = text
     .replace_all(old="# ", new="")
@@ -54,11 +54,11 @@ fn normalize_description(text : String) -> String raise {
   let normalized = cleaned.trim()
 
   // Convert to String and limit length (truncate with ellipsis if too long)
-  let result = normalized.to_string()
+  let result = normalized.to_owned()
   if result.length() > 200 {
     // Use view and pattern matching to safely get first 197 chars
     let view = result.view()
-    let truncated = view[:197].to_string()
+    let truncated = view[:197].to_owned()
     truncated + "..."
   } else {
     result
@@ -67,7 +67,7 @@ fn normalize_description(text : String) -> String raise {
 
 ///|
 /// Generate meta tags for OGP and Twitter Card
-fn meta_tags(meta : PageMeta?) -> Array[@tmpx.Node] raise {
+fn meta_tags(meta : PageMeta?) -> Array[@tmpx.Node] {
   let tags : Array[@tmpx.Node] = []
 
   // Determine values (use page meta or fall back to site defaults)
@@ -174,7 +174,7 @@ pub fn layout_with_meta(
   title : String,
   content : @tmpx.Node,
   meta : PageMeta,
-) -> String raise {
+) -> String {
   let page = @tmpx.raw_html("<!DOCTYPE html>")
   let meta_nodes = meta_tags(Some(meta))
   let html = @tmpx.html_([@tmpx.lang_attr("en")], [
@@ -224,7 +224,7 @@ pub fn layout_with_meta(
 }
 
 ///|
-pub fn layout(title : String, content : @tmpx.Node) -> String raise {
+pub fn layout(title : String, content : @tmpx.Node) -> String {
   let page = @tmpx.raw_html("<!DOCTYPE html>")
   let meta_nodes = meta_tags(None)
   let html = @tmpx.html_([@tmpx.lang_attr("en")], [
@@ -270,7 +270,7 @@ pub fn layout(title : String, content : @tmpx.Node) -> String raise {
 }
 
 ///|
-pub fn error_layout(title : String, message : String) -> String raise {
+pub fn error_layout(title : String, message : String) -> String {
   layout(
     title,
     @tmpx.div([@tmpx.class_("error-page")], [

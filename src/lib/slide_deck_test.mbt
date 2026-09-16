@@ -53,9 +53,9 @@ test "parse OKF front matter tolerates extra keys and block-list tags" {
 ///|
 test "validate slide markdown requires h2" {
   let invalid = "no headings"
-  inspect(
+  assert_eq(
     validate_slide_markdown(invalid),
-    content="Some(Slide content must contain at least one H2 heading (`## title`).)",
+    Some("Slide content must contain at least one H2 heading (`## title`)."),
   )
 }
 
@@ -76,7 +76,7 @@ test "render svg slides scales up when content is short" {
 
 ///|
 test "render svg slides truncates when content is dense" {
-  let sb = StringBuilder::new()
+  let sb = StringBuilder()
   sb.write_string("## Dense\n")
   for i = 0; i < 40; i = i + 1 {
     sb.write_string("- item ")

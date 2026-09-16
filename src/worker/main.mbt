@@ -101,7 +101,9 @@ extern "js" fn get_pathname(url : @core.Any) -> String =
   #| (url) => url.pathname
 
 ///|
-extern "js" fn get_request_method(req : @cloudflare.CloudflareRequest) -> String =
+extern "js" fn get_request_method(
+  req : @cloudflare.CloudflareRequest,
+) -> String =
   #| (req) => req.method
 
 ///|
@@ -190,8 +192,8 @@ extern "js" fn to_rfc2822(datetime : String) -> String =
 ///|
 fn strip_md_suffix(slug : String) -> String? {
   if slug.has_suffix(".md") && slug.length() > 3 {
-    let view = try! slug[:slug.length() - 3]
-    let base_slug = view.to_string()
+    let view = slug[:slug.length() - 3]
+    let base_slug = view.to_owned()
     if base_slug.length() == 0 {
       None
     } else {
@@ -214,7 +216,7 @@ fn absolute_post_url(slug : String) -> String {
 
 ///|
 fn yaml_quote(value : String) -> String {
-  let sb = StringBuilder::new()
+  let sb = StringBuilder()
   sb.write_char('"')
   for ch in value {
     match ch {
@@ -234,7 +236,7 @@ fn yaml_quote(value : String) -> String {
 fn render_markdown_with_front_matter(post : @models.BlogPost) -> String {
   // OKF (Open Knowledge Format) v0.1 front matter.
   // Required: type. Recommended: title, description, resource, timestamp.
-  let sb = StringBuilder::new()
+  let sb = StringBuilder()
   sb.write_string("---\n")
   sb.write_string("type: ")
   sb.write_string(
@@ -277,7 +279,7 @@ async fn get_post_by_slug(
 
 ///|
 fn json_escape(s : String) -> String {
-  let sb = StringBuilder::new()
+  let sb = StringBuilder()
   sb.write_char('"')
   for ch in s {
     match ch {
@@ -295,7 +297,7 @@ fn json_escape(s : String) -> String {
 
 ///|
 fn xml_escape(s : String) -> String {
-  let sb = StringBuilder::new()
+  let sb = StringBuilder()
   for ch in s {
     match ch {
       '&' => sb.write_string("&amp;")
@@ -311,7 +313,7 @@ fn xml_escape(s : String) -> String {
 
 ///|
 fn feed_excerpt(post : @models.BlogPost) -> String {
-  let excerpt = post.excerpt.trim().to_string()
+  let excerpt = post.excerpt.trim().to_owned()
   if excerpt.length() > 0 {
     return excerpt
   }
@@ -319,9 +321,9 @@ fn feed_excerpt(post : @models.BlogPost) -> String {
     .replace_all(old="\r", new=" ")
     .replace_all(old="\n", new=" ")
     .trim()
-    .to_string()
+    .to_owned()
   if compact.length() > 200 {
-    let sb = StringBuilder::new()
+    let sb = StringBuilder()
     let mut count = 0
     for ch in compact {
       if count >= 200 {
@@ -339,7 +341,7 @@ fn feed_excerpt(post : @models.BlogPost) -> String {
 
 ///|
 fn render_rss_feed(posts : Array[@models.BlogPost]) -> String {
-  let sb = StringBuilder::new()
+  let sb = StringBuilder()
   sb.write_string("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
   sb.write_string("<rss version=\"2.0\">\n")
   sb.write_string("  <channel>\n")
@@ -396,16 +398,18 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
       None => {
         let url = parse_url(req.url)
         let pathname = get_pathname(url)
-        let method = get_request_method(req).to_upper()
+        let request_method = get_request_method(req).to_upper()
 
         // OAuth discovery is public and must not depend on the content database.
-        if method == "GET" && pathname == "/.well-known/oauth-protected-resource" {
+        if request_method == "GET" &&
+          pathname == "/.well-known/oauth-protected-resource" {
           return json_response(
             @oauth.protected_resource_metadata(@config.SITE_URL),
             200,
           )
         }
-        if method == "GET" && pathname == "/.well-known/oauth-authorization-server" {
+        if request_method == "GET" &&
+          pathname == "/.well-known/oauth-authorization-server" {
           return json_response(
             @oauth.authorization_server_metadata(@config.SITE_URL),
             200,
@@ -544,7 +548,8 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
                 }
                 // Extract embed URLs and fetch data
                 let embed_urls = @lib.extract_embed_urls(post.content)
-                let embed_data : @hashmap.HashMap[String, @lib.EmbedData] = @hashmap.new()
+                let embed_data : @hashmap.HashMap[String, @lib.EmbedData] = @hashmap.HashMap([],
+                )
                 for embed_url in embed_urls {
                   match @lib.detect_youtube_video_id(embed_url) {
                     Some(video_id) => {

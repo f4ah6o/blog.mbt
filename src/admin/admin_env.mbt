@@ -58,10 +58,11 @@ fn get_jwt_secret(env : @cloudflare.CloudflareEnv) -> String? {
 fn get_jwt_expires_in(env : @cloudflare.CloudflareEnv) -> Int {
   match get_env_string(env, "JWT_EXPIRES_IN") {
     Some(s) => {
-      let parsed : Result[Int, _] = try? @strconv.parse_int(s)
-      match parsed {
-        Ok(v) if v > 0 => v
-        _ => 86400
+      let parsed = @string.parse_int(s) catch { _ => 0 }
+      if parsed > 0 {
+        parsed
+      } else {
+        86400
       }
     }
     None => 86400

@@ -2,7 +2,7 @@
 pub enum PostStatus {
   Draft
   Published
-} derive(Show, Eq)
+} derive(Debug, Eq)
 
 ///|
 pub fn post_status_from_string(value : String) -> PostStatus {
@@ -40,7 +40,7 @@ pub struct AdminPost {
   status : PostStatus
   published_at : String?
   updated_at : String
-} derive(Show)
+} derive(Debug)
 
 ///|
 pub fn AdminPost::new(

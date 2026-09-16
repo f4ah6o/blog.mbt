@@ -1,6 +1,6 @@
 ///|
 pub fn post_detail_content(post : @models.BlogPost) -> @tmpx.Node {
-  post_detail_content_with_embeds(post, @hashmap.new())
+  post_detail_content_with_embeds(post, HashMap([]))
 }
 
 ///|

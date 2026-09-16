@@ -1,6 +1,6 @@
 ///|
 fn replace_plus(value : String) -> String {
-  let sb = StringBuilder::new()
+  let sb = StringBuilder()
   for ch in value {
     if ch == '+' {
       sb.write_char(' ')
@@ -18,21 +18,21 @@ fn url_decode(value : String) -> String {
 
 ///|
 pub fn parse_urlencoded(body : String) -> Map[String, String] {
-  let params : Map[String, String] = {}
+  let params : Map[String, String] = Map([])
   if body == "" {
     return params
   }
   for part_view in body.split("&") {
-    let part = part_view.to_string()
+    let part = part_view.to_owned()
     if part == "" {
       continue
     }
     let split_pos = part.find("=")
     let (raw_key, raw_value) = match split_pos {
       Some(pos) => {
-        let key_view = try! part[:pos]
-        let value_view = try! part[pos + 1:]
-        (key_view.to_string(), value_view.to_string())
+        let key_view = part[:pos]
+        let value_view = part[pos + 1:]
+        (key_view.to_owned(), value_view.to_owned())
       }
       None => (part, "")
     }

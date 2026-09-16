@@ -1,12 +1,7 @@
 ///|
 fn parse_int(value : String) -> Int? {
-  let parsed : Result[Int, @strconv.StrConvError] = try? @strconv.parse_int(
-    value,
-  )
-  match parsed {
-    Ok(v) => Some(v)
-    Err(_) => None
-  }
+  let parsed = @string.parse_int(value) catch { _ => return None }
+  Some(parsed)
 }
 
 ///|
@@ -30,15 +25,15 @@ fn path_segments(path : String) -> Array[String] {
   let trimmed = if start == 0 && end == path.length() {
     path
   } else {
-    let view = try! path[start:end]
-    view.to_string()
+    let view = path[start:end]
+    view.to_owned()
   }
   if trimmed == "" {
     return []
   }
   let segments : Array[String] = []
   for part in trimmed.split("/") {
-    segments.push(part.to_string())
+    segments.push(part.to_owned())
   }
   segments
 }
@@ -139,15 +134,12 @@ async fn handle_login_verify(
   //
   // Parse request body
   let body = read_json_body(req)
-  let json_result = try? @json.parse(body)
-  let json = match json_result {
-    Ok(j) => j
-    Err(_) => return json_response("{\"error\":\"Invalid JSON\"}", 400)
+  let json_result = @json.parse(body) catch {
+    _ => return json_response("{\"error\":\"Invalid JSON\"}", 400)
   }
-  let request_result : Result[AuthVerifyRequest, _] = try? @json.from_json(json)
-  let request = match request_result {
-    Ok(r) => r
-    Err(_) => return json_response("{\"error\":\"Invalid request body\"}", 400)
+  let json = json_result
+  let request = @json.from_json(json) catch {
+    _ => return json_response("{\"error\":\"Invalid request body\"}", 400)
   }
   //
   // Verify authentication
@@ -225,15 +217,12 @@ async fn handle_register_verify(
   //
   // Parse request body
   let body = read_json_body(req)
-  let json_result = try? @json.parse(body)
-  let json = match json_result {
-    Ok(j) => j
-    Err(_) => return json_response("{\"error\":\"Invalid JSON\"}", 400)
+  let json_result = @json.parse(body) catch {
+    _ => return json_response("{\"error\":\"Invalid JSON\"}", 400)
   }
-  let request_result : Result[RegVerifyRequest, _] = try? @json.from_json(json)
-  let request = match request_result {
-    Ok(r) => r
-    Err(e) =>
+  let json = json_result
+  let request = @json.from_json(json) catch {
+    e =>
       return json_response(
         "{\"error\":\"Invalid request body: " +
         e.to_string() +
@@ -505,7 +494,7 @@ pub async fn handle_admin_request(
 ) -> @http.Response? {
   let url = parse_url(req.url)
   let pathname = get_pathname(url)
-  if not(pathname.has_prefix("/admin")) {
+  if !pathname.has_prefix("/admin") {
     return None
   }
   let http_req = as_http_request(req)
@@ -560,7 +549,7 @@ pub async fn handle_admin_request(
     segments[0] == "admin" &&
     segments[1] == "register" &&
     segments[2] == "options" {
-    if not(has_valid_setup_token_header(http_req, env)) {
+    if !has_valid_setup_token_header(http_req, env) {
       return Some(forbidden_json_response())
     }
     let res : @http.Response = handle_register_options(kv, env)
@@ -572,7 +561,7 @@ pub async fn handle_admin_request(
     segments[0] == "admin" &&
     segments[1] == "register" &&
     segments[2] == "verify" {
-    if not(has_valid_setup_token_header(http_req, env)) {
+    if !has_valid_setup_token_header(http_req, env) {
       return Some(forbidden_json_response())
     }
     let res : @http.Response = handle_register_verify(kv, env, http_req)

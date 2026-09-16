@@ -29,7 +29,7 @@ struct JwtPayload {
   exp : Int
   /// JWT ID (unique session identifier)
   jti : String
-} derive(Show, ToJson, FromJson)
+} derive(Debug, ToJson, FromJson)
 
 // =============================================================================
 // Cookie Building
@@ -85,15 +85,9 @@ async fn verify_session_token(token : String, secret : String) -> JwtPayload? {
   match payload_json {
     None => None
     Some(json_str) => {
-      let json_result = try? @json.parse(json_str)
-      let json = match json_result {
-        Ok(j) => j
-        Err(_) => return None
-      }
-      let payload_result : Result[JwtPayload, _] = try? @json.from_json(json)
-      let payload = match payload_result {
-        Ok(p) => p
-        Err(_) => return None
+      let json = @json.parse(json_str) catch { _ => return None }
+      let payload : JwtPayload = @json.from_json(json) catch {
+        _ => return None
       }
       let now = now_unix_seconds()
       if now > payload.exp + clock_skew_tolerance {
