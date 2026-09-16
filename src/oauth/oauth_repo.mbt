@@ -54,6 +54,26 @@ pub struct AccessTokenRecord {
   scope : String
   created_at : Int
   expires_at : Int
+} derive(Debug, Eq)
+
+///|
+pub fn AccessTokenRecord::client_id(self : AccessTokenRecord) -> String {
+  self.client_id
+}
+
+///|
+pub fn AccessTokenRecord::resource(self : AccessTokenRecord) -> String {
+  self.resource
+}
+
+///|
+pub fn AccessTokenRecord::scope(self : AccessTokenRecord) -> String {
+  self.scope
+}
+
+///|
+pub fn AccessTokenRecord::expires_at(self : AccessTokenRecord) -> Int {
+  self.expires_at
 }
 
 ///|
@@ -445,6 +465,39 @@ pub async fn lookup_access_token(
         })
       }
     }
+  }
+}
+
+///|
+/// Validate a bearer token independently from authorization scope. Keeping
+/// this result separate lets the resource server return 403 for a valid token
+/// that lacks permission instead of misreporting it as an invalid token.
+pub async fn lookup_access_token_for_resource(
+  db : @cloudflare.D1Database,
+  token_hash : String,
+  resource : String,
+  now : Int,
+) -> AccessTokenRecord? raise @cloudflare.D1Error {
+  if !validate_sha256_hex(token_hash) || resource.is_empty() {
+    return None
+  }
+  let row = db
+    .prepare(
+      "SELECT token_hash, client_id, resource, scope, created_at, expires_at FROM oauth_access_tokens WHERE token_hash = ? AND resource = ? AND expires_at > ? AND revoked_at IS NULL",
+    )
+    .bind([@core.any(token_hash), @core.any(resource), @core.any(now)])
+    .first()
+  match row {
+    None => None
+    Some(value) =>
+      access_token_record(
+        value["token_hash"].cast(),
+        value["client_id"].cast(),
+        value["resource"].cast(),
+        value["scope"].cast(),
+        @cloudflare.js_number_to_int(value["created_at"]),
+        @cloudflare.js_number_to_int(value["expires_at"]),
+      )
   }
 }
 

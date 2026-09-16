@@ -42,6 +42,68 @@ test "metadata uses one configured issuer and resource" {
     authorization.contains("authorization_response_iss_parameter_supported"[:]),
     true,
   )
+  assert_eq(resource_metadata.contains("offline_access"[:]), false)
+}
+
+///|
+test "protected resource scopes exclude offline access" {
+  assert_eq(validate_protected_resource_scope("blog:read"), true)
+  assert_eq(validate_protected_resource_scope("blog:read blog:write"), true)
+  assert_eq(validate_protected_resource_scope("offline_access"), false)
+  assert_eq(
+    validate_protected_resource_scope("blog:read offline_access"),
+    false,
+  )
+}
+
+///|
+test "protected resource decisions distinguish invalid and insufficient tokens" {
+  let hash = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+  let token = access_token_record(
+    hash, "client", "https://blog.example/mcp", "blog:read", 100, 200,
+  ).unwrap()
+  assert_eq(protected_resource_decision(None, "blog:read"), InvalidToken)
+  assert_eq(
+    protected_resource_decision(Some(token), "blog:write"),
+    InsufficientScope,
+  )
+  assert_eq(
+    protected_resource_decision(Some(token), "blog:read") is Authorized(_),
+    true,
+  )
+  assert_eq(
+    protected_resource_decision(Some(token), "offline_access"),
+    InvalidConfiguration,
+  )
+}
+
+///|
+test "protected resource challenges carry exact metadata and scope" {
+  let missing = protected_resource_challenge(
+    "https://blog.example/",
+    "blog:read",
+    None,
+  ).unwrap()
+  assert_eq(
+    missing, "Bearer resource_metadata=\"https://blog.example/.well-known/oauth-protected-resource\", scope=\"blog:read\"",
+  )
+  let invalid = protected_resource_challenge(
+    "https://blog.example",
+    "blog:write",
+    Some("invalid_token"),
+  ).unwrap()
+  assert_eq(invalid.contains("error=\"invalid_token\""[:]), true)
+  assert_eq(invalid.contains("scope=\"blog:write\""[:]), true)
+  let insufficient = protected_resource_challenge(
+    "https://blog.example",
+    "blog:publish",
+    Some("insufficient_scope"),
+  ).unwrap()
+  assert_eq(insufficient.contains("error=\"insufficient_scope\""[:]), true)
+  assert_eq(
+    protected_resource_challenge("https://blog.example", "offline_access", None),
+    None,
+  )
 }
 
 ///|

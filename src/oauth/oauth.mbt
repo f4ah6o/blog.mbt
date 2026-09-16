@@ -16,6 +16,20 @@ pub fn supported_scopes() -> Array[String] {
 }
 
 ///|
+/// Scopes that a protected resource may require. offline_access is an OAuth
+/// authorization scope, not a permission needed to call the resource.
+pub fn protected_resource_scopes() -> Array[String] {
+  [SCOPE_READ, SCOPE_WRITE, SCOPE_PUBLISH]
+}
+
+///|
+pub fn validate_protected_resource_scope(scope : String) -> Bool {
+  validate_scope(scope) &&
+  scope != SCOPE_OFFLINE_ACCESS &&
+  for_all_scope(scope, fn(item) { item != SCOPE_OFFLINE_ACCESS })
+}
+
+///|
 fn supported_scope(scope : String) -> Bool {
   scope == SCOPE_READ ||
   scope == SCOPE_WRITE ||
@@ -94,7 +108,7 @@ pub fn protected_resource_metadata(base_url : String) -> String {
   let metadata = ProtectedResourceMetadata::{
     resource: base + "/mcp",
     authorization_servers: [base],
-    scopes_supported: supported_scopes(),
+    scopes_supported: protected_resource_scopes(),
     bearer_methods_supported: ["header"],
   }
   ToJson::to_json(metadata).stringify()

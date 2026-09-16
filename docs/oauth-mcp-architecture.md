@@ -50,6 +50,7 @@ CIMD is the preferred client-registration path. DCR is deprecated and should be 
 ## Security and ownership decisions
 
 - Access and refresh tokens are opaque, high-entropy random values. Only a hash of each token is stored in D1; plaintext tokens are returned once and never persisted.
+- Bearer protected-resource authorization middleware primitives are implemented: Authorization-header-only parsing, hash-only exact-resource validation, expiry/revocation and stored-scope integrity checks, distinct 401/403 decisions, and RFC 6750/RFC 9728 challenges. Required resource scopes are limited to `blog:read`, `blog:write`, and `blog:publish`; `offline_access` is not a resource permission.
 - D1 owns OAuth clients, grants, authorization codes, token hashes, scopes, expiry, revocation, and audit timestamps. KV remains appropriate for short-lived admin/WebAuthn challenges, not durable OAuth ownership.
 - WebAuthn authentication under `src/admin` proves the separately configured blog administrator identity. A future OAuth authorization step may reuse a verified admin session, but must not conflate the admin JWT/cookie or credential records with OAuth client/user/token records.
 - Issuer and protected-resource URLs must be stable and exact. The configured HTTPS `SITE_URL` is preferred over untrusted `Host` headers; request-derived origins can be added only with an explicit trusted-origin policy.
@@ -59,8 +60,8 @@ CIMD is the preferred client-registration path. DCR is deprecated and should be 
 - Add D1 OAuth schema and migrations, including hashed opaque tokens and one-time authorization codes.
 - Add authorization endpoint and a WebAuthn-backed consent flow without changing `/admin` routes.
 - Add a short-lived CIMD metadata cache; add opt-in DCR compatibility only when required.
-- Add bearer protected-resource middleware with exact resource and scope enforcement.
-- Add stateless Streamable HTTP MCP routing and read-only blog tools first, then separately authorized write/publish tools.
+- Bearer protected-resource middleware primitives with exact resource and scope enforcement are implemented.
+- Next: add MCP protocol primitives, then stateless Streamable HTTP MCP routing and read-only blog tools first, followed by separately authorized write/publish tools.
 - Add Cloudflare bindings/configuration, integration tests, and deployment checks after local protocol tests pass.
 
 ## Baseline dependency note
