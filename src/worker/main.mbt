@@ -101,6 +101,10 @@ extern "js" fn get_pathname(url : @core.Any) -> String =
   #| (url) => url.pathname
 
 ///|
+extern "js" fn get_request_method(req : @cloudflare.CloudflareRequest) -> String =
+  #| (req) => req.method
+
+///|
 extern "js" fn get_search_param(url : @core.Any, name : String) -> String? =
   #| (url, name) => {
   #|   const value = url.searchParams.get(name)
@@ -392,6 +396,21 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
       None => {
         let url = parse_url(req.url)
         let pathname = get_pathname(url)
+        let method = get_request_method(req).to_upper()
+
+        // OAuth discovery is public and must not depend on the content database.
+        if method == "GET" && pathname == "/.well-known/oauth-protected-resource" {
+          return json_response(
+            @oauth.protected_resource_metadata(@config.SITE_URL),
+            200,
+          )
+        }
+        if method == "GET" && pathname == "/.well-known/oauth-authorization-server" {
+          return json_response(
+            @oauth.authorization_server_metadata(@config.SITE_URL),
+            200,
+          )
+        }
         let db = get_db_from_env(env)
 
         // Check if database is available

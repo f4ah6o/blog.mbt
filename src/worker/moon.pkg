@@ -4,6 +4,7 @@ import {
   "f4ah6o/blog.mbt/lib",
   "f4ah6o/blog.mbt/models",
   "f4ah6o/blog.mbt/templates",
+  "f4ah6o/blog.mbt/oauth",
   "mizchi/cloudflare",
   "mizchi/js/builtins/global",
   "mizchi/js/core",
