@@ -1,15 +1,5 @@
-CREATE TABLE IF NOT EXISTS posts (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  title TEXT NOT NULL,
-  slug TEXT UNIQUE NOT NULL,
-  excerpt TEXT,
-  content TEXT NOT NULL,
-  slide_flag INTEGER NOT NULL DEFAULT 0,
-  status TEXT NOT NULL DEFAULT 'draft',
-  visibility TEXT NOT NULL DEFAULT 'public',
-  published_at TEXT,
-  updated_at TEXT NOT NULL
-);
+-- OAuth v0.1 migration: durable opaque authorization codes and tokens.
+-- Secrets are never stored here; callers persist SHA-256 hashes only.
 
 CREATE TABLE IF NOT EXISTS oauth_authorization_codes (
   code_hash TEXT NOT NULL UNIQUE,

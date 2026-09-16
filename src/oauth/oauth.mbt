@@ -44,15 +44,16 @@ pub fn validate_scope(scope : String) -> Bool {
 
 ///|
 pub fn scope_contains(granted : String, required : String) -> Bool {
-  validate_scope(granted) && validate_scope(required) &&
-    for_all_scope(required, fn(scope) {
-      for item in granted.split(" ") {
-        if item.to_owned() == scope {
-          return true
-        }
+  validate_scope(granted) &&
+  validate_scope(required) &&
+  for_all_scope(required, fn(scope) {
+    for item in granted.split(" ") {
+      if item.to_owned() == scope {
+        return true
       }
-      false
-    })
+    }
+    false
+  })
 }
 
 ///|
@@ -144,11 +145,13 @@ fn valid_unreserved(value : String) -> Bool {
     return false
   }
   for ch in value {
-    let allowed =
-      (ch >= 'A' && ch <= 'Z') ||
+    let allowed = (ch >= 'A' && ch <= 'Z') ||
       (ch >= 'a' && ch <= 'z') ||
       (ch >= '0' && ch <= '9') ||
-      ch == '-' || ch == '.' || ch == '_' || ch == '~'
+      ch == '-' ||
+      ch == '.' ||
+      ch == '_' ||
+      ch == '~'
     if !allowed {
       return false
     }
@@ -167,11 +170,11 @@ pub fn validate_pkce_challenge(challenge : String) -> Bool {
     return false
   }
   for ch in challenge {
-    let allowed =
-      (ch >= 'A' && ch <= 'Z') ||
+    let allowed = (ch >= 'A' && ch <= 'Z') ||
       (ch >= 'a' && ch <= 'z') ||
       (ch >= '0' && ch <= '9') ||
-      ch == '-' || ch == '_'
+      ch == '-' ||
+      ch == '_'
     if !allowed {
       return false
     }
