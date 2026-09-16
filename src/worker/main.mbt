@@ -400,6 +400,11 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
         let pathname = get_pathname(url)
         let request_method = get_request_method(req).to_upper()
 
+        match handle_oauth_request(req, env, url, pathname, request_method) {
+          Some(res) => return res
+          None => ()
+        }
+
         // OAuth discovery is public and must not depend on the content database.
         if request_method == "GET" &&
           pathname == "/.well-known/oauth-protected-resource" {
