@@ -61,7 +61,7 @@ CIMD is the preferred client-registration path. DCR is deprecated and should be 
 - Add authorization endpoint and a WebAuthn-backed consent flow without changing `/admin` routes.
 - Add a short-lived CIMD metadata cache; add opt-in DCR compatibility only when required.
 - Bearer protected-resource middleware primitives with exact resource and scope enforcement are implemented.
-- Next: add MCP protocol primitives, then stateless Streamable HTTP MCP routing and read-only blog tools first, followed by separately authorized write/publish tools.
+- Stateless MCP 2026-07-28 protocol primitives (JSON-RPC request envelope, `_meta` protocol version, and Streamable HTTP standard-header validation) are implemented in `src/mcp`; see `docs/mcp-protocol-architecture.md`. Next: add stateless Streamable HTTP MCP routing and read-only blog tools first, followed by separately authorized write/publish tools.
 - Add Cloudflare bindings/configuration, integration tests, and deployment checks after local protocol tests pass.
 
 ## Baseline dependency note
