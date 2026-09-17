@@ -220,15 +220,15 @@ test "mcp request requires the 2026-07-28 metadata protocol version" {
     #|{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2025-11-25"}}}
   match parse_mcp_request(unsupported) {
     Ok(_) => panic()
-    Err(error) => assert_eq(error.code(), JSON_RPC_INVALID_REQUEST)
+    Err(error) => assert_eq(error.code(), MCP_UNSUPPORTED_PROTOCOL_VERSION)
   }
 }
 
 ///|
-test "optional client info and capabilities are accepted but not authoritative" {
+test "optional client info and client capabilities are accepted but not authoritative" {
   let request = expect_mcp_request(
     (
-      #|{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"my-app","version":"1.0"},"io.modelcontextprotocol/capabilities":{}}}}
+      #|{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"my-app","version":"1.0"},"io.modelcontextprotocol/clientCapabilities":{}}}}
     ),
   )
   match request.client_info() {
@@ -243,12 +243,169 @@ test "optional client info and capabilities are accepted but not authoritative" 
     Some(Object(_)) => ()
     _ => panic()
   }
+  let legacy_key =
+    #|{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/capabilities":{}}}}
+  let legacy = expect_mcp_request(legacy_key)
+  assert_eq(legacy.client_capabilities(), None)
   let malformed =
     #|{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":"nope"}}}
   match parse_mcp_request(malformed) {
     Ok(_) => panic()
     Err(error) => assert_eq(error.code(), JSON_RPC_INVALID_REQUEST)
   }
+}
+
+///|
+test "unsupported body protocol version uses -32022 with supported versions" {
+  let body =
+    #|{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2025-11-25"}}}
+  match parse_mcp_request(body) {
+    Ok(_) => panic()
+    Err(error) => {
+      assert_eq(error.code(), MCP_UNSUPPORTED_PROTOCOL_VERSION)
+      let text = error.to_json_string()
+      assert_true(text.contains("2026-07-28"[:]))
+      assert_true(text.contains("2025-11-25"[:]))
+    }
+  }
+}
+
+///|
+test "unexpected Mcp-Name fails closed" {
+  let body =
+    #|{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}
+  let headers = HttpHeaders::new([
+    (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
+    (MCP_METHOD_HEADER, "server/discover"),
+    (MCP_NAME_HEADER, "unexpected"),
+  ])
+  match validate_mcp_http_request(body, headers) {
+    Ok(_) => panic()
+    Err(response) => assert_eq(response.error().code(), MCP_HEADER_MISMATCH)
+  }
+}
+
+///|
+test "server discovery dispatch returns current minimal response" {
+  let body =
+    #|{"jsonrpc":"2.0","id":"discover-1","method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+  let headers = HttpHeaders::new([
+    (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
+    (MCP_METHOD_HEADER, "server/discover"),
+  ])
+  let response = dispatch_mcp_http_request(
+    body, headers, "f4ah6o/blog.mbt", "0.1.0",
+  )
+  assert_eq(response.status(), 200)
+  let text = response.body()
+  assert_true(text.contains("discover-1"[:]))
+  assert_true(text.contains("supportedVersions"[:]))
+  assert_true(text.contains("2026-07-28"[:]))
+  assert_true(text.contains("io.modelcontextprotocol/serverInfo"[:]))
+  assert_true(text.contains("\"capabilities\":{}"[:]))
+  assert_true(text.contains("\"resultType\":\"complete\""[:]))
+  assert_true(text.contains("\"cacheScope\":\"public\""[:]))
+  assert_true(text.contains("\"ttlMs\":3600000"[:]))
+}
+
+///|
+test "unknown method returns HTTP 404 and JSON-RPC -32601" {
+  let body =
+    #|{"jsonrpc":"2.0","id":9,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}
+  let headers = HttpHeaders::new([
+    (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
+    (MCP_METHOD_HEADER, "tools/list"),
+  ])
+  let response = dispatch_mcp_http_request(body, headers, "server", "1")
+  assert_eq(response.status(), 404)
+  assert_true(response.body().contains("-32601"[:]))
+}
+
+///|
+test "dispatch preserves header and protocol error status contracts" {
+  let body =
+    #|{"jsonrpc":"2.0","id":"header-1","method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}
+  let missing_protocol = dispatch_mcp_http_request(
+    body,
+    HttpHeaders::new([(MCP_METHOD_HEADER, "server/discover")]),
+    "server",
+    "1",
+  )
+  assert_eq(missing_protocol.status(), 400)
+  assert_true(missing_protocol.body().contains("-32020"[:]))
+  assert_true(missing_protocol.body().contains("header-1"[:]))
+
+  let method_mismatch = dispatch_mcp_http_request(
+    body,
+    HttpHeaders::new([
+      (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
+      (MCP_METHOD_HEADER, "tools/list"),
+    ]),
+    "server",
+    "1",
+  )
+  assert_eq(method_mismatch.status(), 400)
+  assert_true(method_mismatch.body().contains("-32020"[:]))
+
+  let stale_body =
+    #|{"jsonrpc":"2.0","id":"version-1","method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2025-11-25"}}}
+  let unsupported_protocol = dispatch_mcp_http_request(
+    stale_body,
+    HttpHeaders::new([
+      (MCP_PROTOCOL_VERSION_HEADER, "2025-11-25"),
+      (MCP_METHOD_HEADER, "server/discover"),
+    ]),
+    "server",
+    "1",
+  )
+  assert_eq(unsupported_protocol.status(), 400)
+  assert_true(unsupported_protocol.body().contains("-32022"[:]))
+  assert_true(unsupported_protocol.body().contains("version-1"[:]))
+}
+
+///|
+test "malformed and invalid requests remain HTTP 400 with JSON-RPC errors" {
+  let malformed = dispatch_mcp_http_request(
+    "{",
+    HttpHeaders::empty(),
+    "server",
+    "1",
+  )
+  assert_eq(malformed.status(), 400)
+  assert_true(malformed.body().contains("-32700"[:]))
+  let invalid_body =
+    #|{"jsonrpc":"1.0","id":1,"method":"server/discover","params":{}}
+  let invalid = dispatch_mcp_http_request(
+    invalid_body,
+    HttpHeaders::empty(),
+    "server",
+    "1",
+  )
+  assert_eq(invalid.status(), 400)
+  assert_true(invalid.body().contains("-32600"[:]))
+}
+
+///|
+test "client notification is rejected over modern Streamable HTTP" {
+  let body =
+    #|{"jsonrpc":"2.0","method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}
+  let headers = HttpHeaders::new([
+    (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
+    (MCP_METHOD_HEADER, "server/discover"),
+  ])
+  let response = dispatch_mcp_http_request(body, headers, "server", "1")
+  assert_eq(response.status(), 400)
+  assert_true(response.body().contains("-32600"[:]))
+}
+
+///|
+test "Streamable HTTP Accept requires json and event-stream" {
+  assert_eq(
+    valid_streamable_http_accept("application/json, text/event-stream"),
+    true,
+  )
+  assert_eq(valid_streamable_http_accept("application/json"), false)
+  assert_eq(valid_streamable_http_accept("text/event-stream"), false)
 }
 
 ///|

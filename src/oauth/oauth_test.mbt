@@ -1,5 +1,6 @@
 ///|
 test "supported OAuth scopes validate" {
+  assert_eq(validate_scope("mcp:discover"), true)
   assert_eq(validate_scope("blog:read blog:write"), true)
   assert_eq(validate_scope("offline_access"), true)
   assert_eq(validate_scope("blog:admin"), false)
@@ -9,6 +10,7 @@ test "supported OAuth scopes validate" {
 
 ///|
 test "scope containment validates both sets" {
+  assert_eq(scope_contains("mcp:discover blog:read", "mcp:discover"), true)
   assert_eq(scope_contains("blog:read blog:write", "blog:read"), true)
   assert_eq(scope_contains("blog:read", "blog:publish"), false)
 }
@@ -47,12 +49,61 @@ test "metadata uses one configured issuer and resource" {
 
 ///|
 test "protected resource scopes exclude offline access" {
+  assert_eq(validate_protected_resource_scope("mcp:discover"), true)
   assert_eq(validate_protected_resource_scope("blog:read"), true)
   assert_eq(validate_protected_resource_scope("blog:read blog:write"), true)
   assert_eq(validate_protected_resource_scope("offline_access"), false)
   assert_eq(
     validate_protected_resource_scope("blog:read offline_access"),
     false,
+  )
+}
+
+///|
+test "protected resource record validation binds resource expiry and scope" {
+  let hash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  let token = access_token_record(
+    hash, "client", "https://blog.example/mcp", "mcp:discover", 100, 200,
+  ).unwrap()
+  assert_eq(
+    protected_resource_record_decision(
+      Some(token),
+      "https://blog.example/mcp",
+      "mcp:discover",
+      150,
+    )
+    is Authorized(_),
+    true,
+  )
+  assert_eq(
+    protected_resource_record_decision(
+      Some(token),
+      "https://other.example/mcp",
+      "mcp:discover",
+      150,
+    ),
+    InvalidToken,
+  )
+  assert_eq(
+    protected_resource_record_decision(
+      Some(token),
+      "https://blog.example/mcp",
+      "mcp:discover",
+      200,
+    ),
+    InvalidToken,
+  )
+  let content_token = access_token_record(
+    hash, "client", "https://blog.example/mcp", "blog:read", 100, 200,
+  ).unwrap()
+  assert_eq(
+    protected_resource_record_decision(
+      Some(content_token),
+      "https://blog.example/mcp",
+      "mcp:discover",
+      150,
+    ),
+    InsufficientScope,
   )
 }
 

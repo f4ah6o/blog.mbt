@@ -8,18 +8,29 @@ pub const SCOPE_WRITE : String = "blog:write"
 pub const SCOPE_PUBLISH : String = "blog:publish"
 
 ///|
+/// Minimal permission to call the authenticated MCP `server/discover`
+/// operation. It is deliberately separate from blog content read access.
+pub const SCOPE_MCP_DISCOVER : String = "mcp:discover"
+
+///|
 pub const SCOPE_OFFLINE_ACCESS : String = "offline_access"
 
 ///|
 pub fn supported_scopes() -> Array[String] {
-  [SCOPE_READ, SCOPE_WRITE, SCOPE_PUBLISH, SCOPE_OFFLINE_ACCESS]
+  [
+    SCOPE_MCP_DISCOVER,
+    SCOPE_READ,
+    SCOPE_WRITE,
+    SCOPE_PUBLISH,
+    SCOPE_OFFLINE_ACCESS,
+  ]
 }
 
 ///|
 /// Scopes that a protected resource may require. offline_access is an OAuth
 /// authorization scope, not a permission needed to call the resource.
 pub fn protected_resource_scopes() -> Array[String] {
-  [SCOPE_READ, SCOPE_WRITE, SCOPE_PUBLISH]
+  [SCOPE_MCP_DISCOVER, SCOPE_READ, SCOPE_WRITE, SCOPE_PUBLISH]
 }
 
 ///|
@@ -31,6 +42,7 @@ pub fn validate_protected_resource_scope(scope : String) -> Bool {
 
 ///|
 fn supported_scope(scope : String) -> Bool {
+  scope == SCOPE_MCP_DISCOVER ||
   scope == SCOPE_READ ||
   scope == SCOPE_WRITE ||
   scope == SCOPE_PUBLISH ||

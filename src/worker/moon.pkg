@@ -5,6 +5,7 @@ import {
   "f4ah6o/blog.mbt/models",
   "f4ah6o/blog.mbt/templates",
   "f4ah6o/blog.mbt/oauth",
+  "f4ah6o/blog.mbt/mcp",
   "f4ah6o/blog.mbt/identity",
   "mizchi/cloudflare",
   "mizchi/js/builtins/global",

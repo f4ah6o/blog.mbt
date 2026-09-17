@@ -405,6 +405,11 @@ pub fn get_fetch_handler() -> @cloudflare.CloudflareFetchHandler {
           None => ()
         }
 
+        match handle_mcp_request(req, env, pathname, request_method) {
+          Some(res) => return res
+          None => ()
+        }
+
         // OAuth discovery is public and must not depend on the content database.
         if request_method == "GET" &&
           pathname == "/.well-known/oauth-protected-resource" {

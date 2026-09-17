@@ -75,6 +75,7 @@ pub(all) enum McpHeaderError {
   MissingHeader(String)
   HeaderValueMismatch(String, String, String)
   MissingBodyValue(String, String, McpNameSource)
+  UnexpectedHeader(String, String, String)
 } derive(Eq, Debug)
 
 ///|
@@ -97,6 +98,14 @@ pub fn McpHeaderError::to_json_rpc_error(self : McpHeaderError) -> JsonRpcError 
       method_name +
       " but the body does not carry " +
       mcp_name_source_field(source)
+    UnexpectedHeader(header, method_name, value) =>
+      "Header mismatch: " +
+      header +
+      " must not be sent for " +
+      method_name +
+      " (received '" +
+      value +
+      "')"
   }
   JsonRpcError::new(MCP_HEADER_MISMATCH, message)
 }
@@ -153,7 +162,10 @@ pub fn validate_name_header(
 ) -> McpHeaderError? {
   let source = mcp_name_source(method_name)
   if source is NoName {
-    return None
+    return match headers.get(MCP_NAME_HEADER) {
+      None => None
+      Some(value) => Some(UnexpectedHeader(MCP_NAME_HEADER, method_name, value))
+    }
   }
   match body_value {
     None => Some(MissingBodyValue(MCP_NAME_HEADER, method_name, source))

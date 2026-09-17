@@ -6,7 +6,7 @@ pub const MCP_PROTOCOL_VERSION_META_KEY : String = "io.modelcontextprotocol/prot
 pub const MCP_CLIENT_INFO_META_KEY : String = "io.modelcontextprotocol/clientInfo"
 
 ///|
-pub const MCP_CAPABILITIES_META_KEY : String = "io.modelcontextprotocol/capabilities"
+pub const MCP_CLIENT_CAPABILITIES_META_KEY : String = "io.modelcontextprotocol/clientCapabilities"
 
 ///|
 /// A validated stateless MCP 2026-07-28 request: a JSON-RPC request plus the
@@ -68,7 +68,7 @@ pub fn McpRequest::client_info(self : McpRequest) -> Json? {
 /// The optional, self-reported client capabilities object. Never authoritative.
 pub fn McpRequest::client_capabilities(self : McpRequest) -> Json? {
   match self.meta {
-    Object(meta) => meta.get(MCP_CAPABILITIES_META_KEY)
+    Object(meta) => meta.get(MCP_CLIENT_CAPABILITIES_META_KEY)
     _ => None
   }
 }
@@ -158,9 +158,12 @@ pub fn parse_mcp_request(body : String) -> Result[McpRequest, JsonRpcError] {
   }
   if protocol_version != MCP_PROTOCOL_VERSION {
     return Err(
-      JsonRpcError::new(
-        JSON_RPC_INVALID_REQUEST,
-        "Invalid Request: unsupported protocol version " + protocol_version,
+      JsonRpcError::with_data(
+        MCP_UNSUPPORTED_PROTOCOL_VERSION,
+        "Unsupported protocol version",
+        (
+          { "supported": [MCP_PROTOCOL_VERSION], "requested": protocol_version } :
+          Json),
       ),
     )
   }
@@ -177,7 +180,7 @@ pub fn parse_mcp_request(body : String) -> Result[McpRequest, JsonRpcError] {
         ),
       )
   }
-  match meta.get(MCP_CAPABILITIES_META_KEY) {
+  match meta.get(MCP_CLIENT_CAPABILITIES_META_KEY) {
     None => ()
     Some(Object(_)) => ()
     Some(_) =>
@@ -185,7 +188,7 @@ pub fn parse_mcp_request(body : String) -> Result[McpRequest, JsonRpcError] {
         JsonRpcError::new(
           JSON_RPC_INVALID_REQUEST,
           "Invalid Request: params._meta." +
-          MCP_CAPABILITIES_META_KEY +
+          MCP_CLIENT_CAPABILITIES_META_KEY +
           " must be an object",
         ),
       )
@@ -222,7 +225,16 @@ pub fn validate_mcp_http_request(
 ) -> Result[McpRequest, JsonRpcErrorResponse] {
   let request = match parse_mcp_request(body) {
     Ok(request) => request
-    Err(error) => return Err(JsonRpcErrorResponse::new(null, error))
+    Err(error) => {
+      // If the JSON-RPC envelope itself is valid, preserve its id even when
+      // MCP-specific metadata validation fails. Malformed/invalid JSON-RPC
+      // bodies still use the required null id.
+      let response_id = match parse_json_rpc_request(body) {
+        Ok(envelope) => envelope.id_or_null()
+        Err(_) => null
+      }
+      return Err(JsonRpcErrorResponse::new(response_id, error))
+    }
   }
   match request.validate_headers(headers) {
     Some(error) =>

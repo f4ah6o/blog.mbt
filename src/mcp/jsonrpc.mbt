@@ -20,6 +20,10 @@ pub const JSON_RPC_INTERNAL_ERROR : Int = -32603
 pub const MCP_HEADER_MISMATCH : Int = -32020
 
 ///|
+/// MCP 2026-07-28 `UnsupportedProtocolVersionError`.
+pub const MCP_UNSUPPORTED_PROTOCOL_VERSION : Int = -32022
+
+///|
 pub const JSON_RPC_VERSION : String = "2.0"
 
 ///|

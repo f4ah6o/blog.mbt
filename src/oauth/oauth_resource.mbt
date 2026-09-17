@@ -30,6 +30,36 @@ pub fn protected_resource_decision(
 }
 
 ///|
+/// Defense-in-depth validation for a token record already loaded from
+/// persistence. The repository query also binds resource/expiry, but keeping
+/// these checks in MoonBit makes the protected-resource contract explicit and
+/// directly testable.
+pub fn protected_resource_record_decision(
+  token : AccessTokenRecord?,
+  expected_resource : String,
+  required_scope : String,
+  now : Int,
+) -> ProtectedResourceAuthorization {
+  if !validate_protected_resource_scope(required_scope) ||
+    expected_resource.is_empty() {
+    return InvalidConfiguration
+  }
+  match token {
+    Some(value) => {
+      if value.resource() != expected_resource || value.expires_at() <= now {
+        return InvalidToken
+      }
+      if scope_contains(value.scope(), required_scope) {
+        Authorized(value)
+      } else {
+        InsufficientScope
+      }
+    }
+    None => InvalidToken
+  }
+}
+
+///|
 /// Authorize one protected-resource request. The caller supplies only the
 /// Authorization header value; query strings are intentionally not accepted.
 pub async fn authorize_protected_resource(
@@ -57,7 +87,7 @@ pub async fn authorize_protected_resource(
   }
   let token_hash = sha256_hex(bearer.token) catch { _ => return ServerError }
   let token = lookup_access_token_for_resource(db, token_hash, resource, now)
-  protected_resource_decision(token, required_scope)
+  protected_resource_record_decision(token, resource, required_scope, now)
 }
 
 ///|
