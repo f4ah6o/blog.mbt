@@ -303,18 +303,108 @@ test "server discovery dispatch returns current minimal response" {
   assert_true(text.contains("2026-07-28"[:]))
   assert_true(text.contains("io.modelcontextprotocol/serverInfo"[:]))
   assert_true(text.contains("\"capabilities\":{}"[:]))
+  assert_true(text.contains("server/discover and tools/list are available"[:]))
+  assert_true(
+    text.contains("tools/call and database operations are not implemented"[:]),
+  )
   assert_true(text.contains("\"resultType\":\"complete\""[:]))
   assert_true(text.contains("\"cacheScope\":\"public\""[:]))
   assert_true(text.contains("\"ttlMs\":3600000"[:]))
 }
 
 ///|
-test "unknown method returns HTTP 404 and JSON-RPC -32601" {
+test "tools list returns the stable future-operation catalog" {
   let body =
     #|{"jsonrpc":"2.0","id":9,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}
   let headers = HttpHeaders::new([
     (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
     (MCP_METHOD_HEADER, "tools/list"),
+  ])
+  let response = dispatch_mcp_http_request(body, headers, "server", "1")
+  assert_eq(response.status(), 200)
+  let text = response.body()
+  assert_true(text.contains("\"resultType\":\"complete\""[:]))
+  assert_true(text.contains("\"cacheScope\":\"public\""[:]))
+  assert_true(text.contains("io.modelcontextprotocol/serverInfo"[:]))
+  assert_true(text.contains("\"name\":\"list_posts\""[:]))
+  assert_true(text.contains("\"name\":\"get_post\""[:]))
+  assert_true(text.contains("\"name\":\"create_post\""[:]))
+  assert_true(text.contains("\"name\":\"update_post\""[:]))
+  assert_true(text.contains("\"name\":\"publish_post\""[:]))
+  let names = text.split("\"name\":\"").collect()
+  assert_eq(names.length(), 7)
+  assert_true(names[1].has_prefix("list_posts\""))
+  assert_true(names[2].has_prefix("get_post\""))
+  assert_true(names[3].has_prefix("create_post\""))
+  assert_true(names[4].has_prefix("update_post\""))
+  assert_true(names[5].has_prefix("publish_post\""))
+  assert_true(names[6].has_prefix("server\""))
+  assert_true(!text.contains("nextCursor"[:]))
+  assert_true(text.contains("\"additionalProperties\":false"[:]))
+  assert_true(
+    text.contains(
+      "\"$schema\":\"https://json-schema.org/draft/2020-12/schema\""[:],
+    ),
+  )
+  assert_true(text.contains("\"id\":{\"type\":\"integer\",\"minimum\":1}"[:]))
+  assert_true(text.contains("\"required\":[\"title\",\"slug\",\"content\"]"[:]))
+  assert_true(
+    text.contains(
+      "\"required\":[\"id\",\"title\",\"slug\",\"excerpt\",\"content\",\"slide_flag\"]"[:],
+    ),
+  )
+}
+
+///|
+test "tools list rejects an unissued cursor as invalid params" {
+  let body =
+    #|{"jsonrpc":"2.0","id":"cursor-1","method":"tools/list","params":{"cursor":"opaque","_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}
+  let headers = HttpHeaders::new([
+    (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
+    (MCP_METHOD_HEADER, "tools/list"),
+  ])
+  let response = dispatch_mcp_http_request(body, headers, "server", "1")
+  assert_eq(response.status(), 400)
+  assert_true(response.body().contains("-32602"[:]))
+  assert_true(response.body().contains("cursor-1"[:]))
+}
+
+///|
+test "tools list rejects unexpected Mcp-Name and method mismatch" {
+  let body =
+    #|{"jsonrpc":"2.0","id":10,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}
+  let unexpected_name = dispatch_mcp_http_request(
+    body,
+    HttpHeaders::new([
+      (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
+      (MCP_METHOD_HEADER, "tools/list"),
+      (MCP_NAME_HEADER, "list_posts"),
+    ]),
+    "server",
+    "1",
+  )
+  assert_eq(unexpected_name.status(), 400)
+  assert_true(unexpected_name.body().contains("-32020"[:]))
+  let method_mismatch = dispatch_mcp_http_request(
+    body,
+    HttpHeaders::new([
+      (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
+      (MCP_METHOD_HEADER, "server/discover"),
+    ]),
+    "server",
+    "1",
+  )
+  assert_eq(method_mismatch.status(), 400)
+  assert_true(method_mismatch.body().contains("-32020"[:]))
+}
+
+///|
+test "unknown method remains HTTP 404 and JSON-RPC -32601" {
+  let body =
+    #|{"jsonrpc":"2.0","id":9,"method":"tools/unknown","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}
+  let headers = HttpHeaders::new([
+    (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
+    (MCP_METHOD_HEADER, "tools/unknown"),
   ])
   let response = dispatch_mcp_http_request(body, headers, "server", "1")
   assert_eq(response.status(), 404)

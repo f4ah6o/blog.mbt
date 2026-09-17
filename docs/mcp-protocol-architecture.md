@@ -17,6 +17,7 @@ not involved; the existing `src/worker-entry.ts` glue is unchanged.
   request to the required per-request `_meta`, plus the combined validation
   pipeline.
 - `discover.mbt` - the minimal current `server/discover` result.
+- `tools.mbt` - the deterministic future blog-operation `tools/list` catalog.
 - `transport.mbt` - stateless request dispatch and HTTP status/body contract.
 
 ## Invariants
@@ -53,12 +54,33 @@ not involved; the existing `src/worker-entry.ts` glue is unchanged.
   JSON-RPC `-32020` `HeaderMismatch` via
   `McpHeaderError::to_json_rpc_error`.
 
-## Not in this slice
+## Tools catalog slice
 
-Blog tools, the `tools/list` catalog, tool calls, database mutations, legacy
-`initialize`/session compatibility, long-lived subscription streams, and
-SSE response streaming are deliberately out of scope and arrive in later
-slices.
+`tools/list` is protocol discovery, not blog-content read access. It uses the
+same `mcp:discover` OAuth policy as `server/discover`; no new scope is added and
+`blog:read` is not required to view the catalog. The exact stable order is
+`list_posts`, `get_post`, `create_post`, `update_post`, `publish_post`. There is
+no delete operation.
+
+The catalog describes future operations only. `tools/call` and all database
+queries/mutations remain unimplemented, so `server/discover` deliberately does
+not advertise a `tools` capability. Future execution authorization remains
+separate: list/get would use `blog:read`, create/update `blog:write`, and
+publish `blog:publish`; these scopes are not encoded as nonstandard Tool
+fields.
+
+The five Tool entries use narrow JSON Schema 2020-12 object schemas with
+`additionalProperties: false`. `list_posts` uses optional `limit` and `offset`;
+get/update/publish use the repository's stable integer post `id`; create has
+required `title`, `slug`, and `content` plus optional `excerpt` and
+`slide_flag`; update reflects the repository's full-replacement fields. The
+result is complete, has no `nextCursor`, and includes serverInfo and public
+cache hints. Any supplied `tools/list` cursor is rejected with JSON-RPC
+`-32602`; it is never silently ignored. `Mcp-Name` does not apply to this
+method and an unexpected header remains `HeaderMismatch`.
+
+Legacy `initialize`/session compatibility, long-lived subscription streams, and
+SSE response streaming remain out of scope.
 
 ## 2026-07-28 stateless HTTP discovery
 
@@ -77,7 +99,9 @@ operation scopes without making discovery imply content access.
 The discovery result advertises only what is implemented: protocol version
 `2026-07-28`, an empty capabilities object, server identity in
 `result._meta["io.modelcontextprotocol/serverInfo"]`, and cache hints. Tool
-capabilities are not advertised until `tools/list` and execution exist.
+capabilities are not advertised because execution (`tools/call`) does not yet
+exist, even though the read-only catalog is now available. This prevents a
+client from treating the transitional catalog as callable functionality.
 
 ## HTTP response contract
 

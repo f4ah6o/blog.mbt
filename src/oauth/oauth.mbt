@@ -8,8 +8,9 @@ pub const SCOPE_WRITE : String = "blog:write"
 pub const SCOPE_PUBLISH : String = "blog:publish"
 
 ///|
-/// Minimal permission to call the authenticated MCP `server/discover`
-/// operation. It is deliberately separate from blog content read access.
+/// Minimal permission to call authenticated MCP protocol discovery operations,
+/// currently `server/discover` and `tools/list`. It is deliberately separate
+/// from blog content read access.
 pub const SCOPE_MCP_DISCOVER : String = "mcp:discover"
 
 ///|

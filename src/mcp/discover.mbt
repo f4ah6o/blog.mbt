@@ -7,9 +7,9 @@ pub const MCP_SERVER_INFO_META_KEY : String = "io.modelcontextprotocol/serverInf
 pub const MCP_DISCOVER_TTL_MS : Int = 3600000
 
 ///|
-/// Build the minimal MCP 2026-07-28 discovery response for the surface that is
-/// actually implemented today. An empty capabilities object is intentional:
-/// tool listing/execution is not advertised until that later slice exists.
+/// Build the MCP 2026-07-28 discovery response. The empty capabilities object
+/// is intentional: the catalog is available through tools/list, but execution
+/// is not implemented and must not be advertised as a callable capability.
 pub fn server_discover_response(
   id : Json,
   server_name : String,
@@ -25,7 +25,7 @@ pub fn server_discover_response(
         "version": server_version,
       },
     },
-    "instructions": "Only server/discover is currently available; tool discovery and execution are not yet exposed.",
+    "instructions": "server/discover and tools/list are available; tools/call and database operations are not implemented.",
     "ttlMs": MCP_DISCOVER_TTL_MS,
     "cacheScope": "public",
   }

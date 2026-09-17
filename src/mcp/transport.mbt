@@ -59,6 +59,22 @@ pub fn dispatch_mcp_http_request(
       ),
     )
   }
+  if request.method_name() == "tools/list" {
+    match
+      tools_list_response(
+        request.id_or_null(),
+        request.params(),
+        server_name,
+        server_version,
+      ) {
+      Ok(body) => return mcp_http_result(200, body)
+      Err(error) =>
+        return mcp_http_result(
+          400,
+          JsonRpcErrorResponse::new(request.id_or_null(), error).to_json_string(),
+        )
+    }
+  }
   let error = JsonRpcError::new(JSON_RPC_METHOD_NOT_FOUND, "Method not found")
   mcp_http_result(
     404,

@@ -25,7 +25,7 @@
 - The validated request is stored server-side as a short-lived `oauth_pending_authorizations` row in D1 (`BLOG_DB`), keyed by the non-secret WebAuthn `challenge_id` and holding the exact validated request fields. The verify POST accepts only the WebAuthn assertion; after WebAuthn verifies, the pending row is claimed with a single conditional `UPDATE ... WHERE consumed_at IS NULL`, so concurrent or replayed requests cannot both obtain the request for code issuance. Cloudflare KV is eventually consistent and is not used for this one-time gate; `OAUTH_AUTH` continues to hold WebAuthn credentials and challenges.
 - Issued authorization codes are 256-bit opaque secrets, stored hash-only in D1 with a 60 second lifetime. Raw codes are only placed in the redirect and are never persisted or logged.
 - Successful and validated error authorization redirects include the RFC 9207 `iss` value exactly matching the RFC 8414 metadata issuer, and the metadata advertises `authorization_response_iss_parameter_supported=true`.
-- The OAuth identity namespace (`OAUTH_AUTH`, `OAUTH_USER_ID`, `OAUTH_RP_ID`, `OAUTH_RP_ORIGIN`) is distinct from the admin JWT/cookie and `ADMIN_AUTH` namespace. No MCP routing is implemented in this slice.
+- The OAuth identity namespace (`OAUTH_AUTH`, `OAUTH_USER_ID`, `OAUTH_RP_ID`, `OAUTH_RP_ORIGIN`) is distinct from the admin JWT/cookie and `ADMIN_AUTH` namespace. MCP routing exposes stateless discovery and the non-callable tools/list catalog only.
 
 ## Token endpoint slice
 
@@ -39,7 +39,7 @@
 1. Add a small MoonBit `oauth` package for the four supported scopes, space-delimited scope validation, safe canonical URL construction, OAuth metadata models, and PKCE verifier/challenge validation.
 2. Use WebCrypto FFI only for CSPRNG bytes and SHA-256 digest capability. Opaque secrets are 32 random bytes encoded as unpadded base64url; persistence uses lowercase SHA-256 hex. Secret syntax, bearer parsing, expiry, scope checks, and single-use/rotation decisions remain MoonBit code.
 3. Route GET `/.well-known/oauth-protected-resource` and GET `/.well-known/oauth-authorization-server` before the D1 availability check. The metadata uses the configured canonical origin, exact issuer/resource values, PKCE S256, and CIMD support. It does not advertise DCR in this slice.
-4. Keep token issuance, authorization UI/WebAuthn linkage, D1 token tables, MCP tools, and deployment wiring for later slices.
+4. Keep token issuance, authorization UI/WebAuthn linkage, D1 token tables, callable MCP tools, and deployment wiring for later slices.
 
 ## MCP 2026-07-28 implications
 
@@ -61,7 +61,7 @@ CIMD is the preferred client-registration path. DCR is deprecated and should be 
 - Add authorization endpoint and a WebAuthn-backed consent flow without changing `/admin` routes.
 - Add a short-lived CIMD metadata cache; add opt-in DCR compatibility only when required.
 - Bearer protected-resource middleware primitives with exact resource and scope enforcement are implemented.
-- Stateless MCP 2026-07-28 protocol primitives (JSON-RPC request envelope, `_meta` protocol version, and Streamable HTTP standard-header validation) are implemented in `src/mcp`; see `docs/mcp-protocol-architecture.md`. Next: add stateless Streamable HTTP MCP routing and read-only blog tools first, followed by separately authorized write/publish tools.
+- Stateless MCP 2026-07-28 protocol primitives and the pure `tools/list` catalog are implemented in `src/mcp`; see `docs/mcp-protocol-architecture.md`. `tools/list` is discovery-only and uses `mcp:discover`, with no new OAuth scope and no `blog:read` requirement. The catalog is exactly `list_posts`, `get_post`, `create_post`, `update_post`, `publish_post` in stable order, using narrow JSON Schema 2020-12 objects and integer post ids. `tools/call` and all DB reads/writes remain absent, so `server/discover` does not advertise a tools capability. Future execution scopes remain `blog:read` for list/get, `blog:write` for create/update, and `blog:publish` for publish; client self-reported info/capabilities never changes catalog or authz. A supplied tools/list cursor is invalid params (`-32602`) because this catalog has no pagination.
 - Add Cloudflare bindings/configuration, integration tests, and deployment checks after local protocol tests pass.
 
 ## Baseline dependency note
