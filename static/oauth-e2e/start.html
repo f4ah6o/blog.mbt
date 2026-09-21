@@ -1,0 +1,299 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>blog OAuth E2E</title>
+<body>
+<h1>blog OAuth E2E</h1>
+<pre id="status">Starting…</pre>
+<script>
+const clientId = `${location.origin}/oauth-e2e/client.json`;
+const redirectUri = `${location.origin}/oauth-e2e/start.html`;
+const resource = `${location.origin}/mcp`;
+const protocolVersion = "2026-07-28";
+
+function base64url(bytes) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function randomValue(size) {
+  const bytes = new Uint8Array(size);
+  crypto.getRandomValues(bytes);
+  return base64url(bytes);
+}
+
+function show(value) {
+  document.getElementById("status").textContent = JSON.stringify(value, null, 2);
+}
+
+let verifier = null;
+let state = null;
+let requestedScope = "mcp:discover";
+
+const initialScope = new URLSearchParams(location.search).get("scope");
+if (initialScope === "blog:read") requestedScope = initialScope;
+
+async function beginAuthorization() {
+  verifier = randomValue(32);
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(verifier),
+  );
+  const challenge = base64url(new Uint8Array(digest));
+  state = randomValue(16);
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    resource,
+    scope: requestedScope,
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+    state,
+  });
+  window.name = JSON.stringify({ verifier, state, scope: requestedScope });
+  location.assign(`/oauth/authorize?${params}`);
+}
+
+async function tokenExchange(code, verifier, extra = {}) {
+  const form = new URLSearchParams({
+    grant_type: "authorization_code",
+    code,
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    resource: extra.resource || resource,
+    code_verifier: extra.code_verifier || verifier,
+  });
+  const response = await fetch("/oauth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form,
+  });
+  let body = null;
+  try { body = await response.json(); } catch (_) {}
+  return {
+    status: response.status,
+    error: body && typeof body.error === "string" ? body.error : undefined,
+    token: body && typeof body.access_token === "string" ? body : null,
+  };
+}
+
+async function mcpRequest(accessToken, method, body, extraHeaders = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    Accept: "application/json, text/event-stream",
+    "MCP-Protocol-Version": protocolVersion,
+    "Mcp-Method": method,
+  };
+  for (const [name, value] of Object.entries(extraHeaders)) {
+    if (value === null) delete headers[name];
+    else headers[name] = value;
+  }
+  if (accessToken !== null) headers.Authorization = `Bearer ${accessToken}`;
+  const response = await fetch("/mcp", {
+    method: "POST",
+    headers,
+    body,
+  });
+  let json = null;
+  try { json = await response.json(); } catch (_) {}
+  return {
+    status: response.status,
+    errorCode: json && json.error && typeof json.error.code === "number"
+      ? json.error.code
+      : undefined,
+    jsonrpc: json && json.jsonrpc,
+    id: json && json.id,
+    result: json && json.result,
+  };
+}
+
+function rpcBody(id, method, params = {}) {
+  return JSON.stringify({
+    jsonrpc: "2.0",
+    id,
+    method,
+    params: {
+      ...params,
+      _meta: { "io.modelcontextprotocol/protocolVersion": protocolVersion },
+    },
+  });
+}
+
+async function completeAuthorization(code, returnedState) {
+  const expectedState = state;
+  if (!code || !verifier || returnedState !== expectedState) {
+    show({ authorization: "FAIL", reason: "missing_or_mismatched_state" });
+    return;
+  }
+  try {
+    const wrongPkce = await tokenExchange(code, verifier + "x");
+    const wrongResource = await tokenExchange(code, verifier, {
+      resource: `${location.origin}/wrong-resource`,
+    });
+    const exchanged = await tokenExchange(code, verifier);
+    if (!exchanged.token) {
+      show({
+        authorization: "PASS",
+        wrong_pkce: { status: wrongPkce.status, error: wrongPkce.error },
+        wrong_resource: { status: wrongResource.status, error: wrongResource.error },
+        token_exchange: { status: exchanged.status, error: exchanged.error },
+      });
+      return;
+    }
+    const accessToken = exchanged.token.access_token;
+    if (requestedScope !== "mcp:discover") {
+      const insufficient = await mcpRequest(
+        accessToken,
+        "server/discover",
+        rpcBody(1, "server/discover"),
+      );
+      show({
+        authorization: "PASS",
+        token_exchange: {
+          status: exchanged.status,
+          token_type: exchanged.token.token_type,
+          scope: exchanged.token.scope,
+          expires_in: exchanged.token.expires_in,
+        },
+        insufficient_scope: {
+          status: insufficient.status,
+          error: insufficient.errorCode,
+        },
+      });
+      return;
+    }
+    const replay = await tokenExchange(code, verifier);
+    const discover = await mcpRequest(
+      accessToken,
+      "server/discover",
+      rpcBody(1, "server/discover"),
+    );
+    const tools = await mcpRequest(
+      accessToken,
+      "tools/list",
+      rpcBody(2, "tools/list"),
+    );
+    const noBearer = await mcpRequest(
+      null,
+      "server/discover",
+      rpcBody(3, "server/discover"),
+    );
+    const invalidBearer = await mcpRequest(
+      "invalid",
+      "server/discover",
+      rpcBody(4, "server/discover"),
+    );
+    const missingVersion = await mcpRequest(
+      accessToken,
+      "server/discover",
+      rpcBody(5, "server/discover"),
+      { "MCP-Protocol-Version": null },
+    );
+    const wrongVersion = await mcpRequest(
+      accessToken,
+      "server/discover",
+      rpcBody(6, "server/discover"),
+      { "MCP-Protocol-Version": "2025-11-25" },
+    );
+    const methodMismatch = await mcpRequest(
+      accessToken,
+      "server/discover",
+      rpcBody(7, "tools/list"),
+    );
+    const unexpectedName = await mcpRequest(
+      accessToken,
+      "tools/list",
+      rpcBody(8, "tools/list"),
+      { "Mcp-Name": "unexpected" },
+    );
+    const invalidCursor = await mcpRequest(
+      accessToken,
+      "tools/list",
+      rpcBody(9, "tools/list", { cursor: "invalid" }),
+    );
+    const unknownMethod = await mcpRequest(
+      accessToken,
+      "unknown/method",
+      rpcBody(10, "unknown/method"),
+    );
+    const malformed = await mcpRequest(
+      accessToken,
+      "server/discover",
+      "{\"jsonrpc\":",
+    );
+    const invalidJsonRpc = await mcpRequest(
+      accessToken,
+      "server/discover",
+      JSON.stringify({ jsonrpc: "1.0", id: 11, method: "server/discover", params: {} }),
+    );
+    const result = discover.result || {};
+    const toolResult = tools.result || {};
+    show({
+      authorization: "PASS",
+      wrong_pkce: { status: wrongPkce.status, error: wrongPkce.error },
+      wrong_resource: { status: wrongResource.status, error: wrongResource.error },
+      token_exchange: {
+        status: exchanged.status,
+        token_type: exchanged.token.token_type,
+        scope: exchanged.token.scope,
+        expires_in: exchanged.token.expires_in,
+      },
+      authorization_code_replay: { status: replay.status, error: replay.error },
+      server_discover: {
+        status: discover.status,
+        jsonrpc: discover.jsonrpc,
+        id: discover.id,
+        resultType: result.resultType,
+        supportedVersions: result.supportedVersions,
+        serverInfo: result._meta && result._meta["io.modelcontextprotocol/serverInfo"],
+        ttlMs: result.ttlMs,
+        cacheScope: result.cacheScope,
+      },
+      tools_list: {
+        status: tools.status,
+        resultType: toolResult.resultType,
+        toolNames: Array.isArray(toolResult.tools)
+          ? toolResult.tools.map((tool) => tool.name)
+          : [],
+        hasNextCursor: Object.prototype.hasOwnProperty.call(toolResult, "nextCursor"),
+        ttlMs: toolResult.ttlMs,
+        cacheScope: toolResult.cacheScope,
+      },
+      negative: {
+        bearer_missing: { status: noBearer.status },
+        bearer_invalid: { status: invalidBearer.status },
+        protocol_version_missing: { status: missingVersion.status, error: missingVersion.errorCode },
+        protocol_version_wrong: { status: wrongVersion.status, error: wrongVersion.errorCode },
+        method_mismatch: { status: methodMismatch.status, error: methodMismatch.errorCode },
+        unexpected_mcp_name: { status: unexpectedName.status, error: unexpectedName.errorCode },
+        invalid_cursor: { status: invalidCursor.status, error: invalidCursor.errorCode },
+        unknown_method: { status: unknownMethod.status, error: unknownMethod.errorCode },
+        malformed_json: { status: malformed.status, error: malformed.errorCode },
+        invalid_jsonrpc: { status: invalidJsonRpc.status, error: invalidJsonRpc.errorCode },
+      },
+    });
+  } catch (_) {
+    show({ authorization: "FAIL", reason: "e2e_request_failed" });
+  } finally {
+    verifier = null;
+    state = null;
+    window.name = "";
+  }
+}
+
+const callback = new URLSearchParams(location.search);
+if (callback.has("code")) {
+  let saved = {};
+  try { saved = JSON.parse(window.name || "{}"); } catch (_) {}
+  verifier = typeof saved.verifier === "string" ? saved.verifier : null;
+  state = typeof saved.state === "string" ? saved.state : null;
+  requestedScope = saved.scope === "blog:read" ? saved.scope : "mcp:discover";
+  const code = callback.get("code");
+  const returnedState = callback.get("state");
+  history.replaceState(null, "", "/oauth-e2e/start.html");
+  completeAuthorization(code, returnedState);
+} else {
+  beginAuthorization();
+}
+</script>

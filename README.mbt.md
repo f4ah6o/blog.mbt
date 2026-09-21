@@ -157,10 +157,16 @@ WebAuthn で保護されています。初回のみセットアップトーク�
 binding = "ADMIN_AUTH"
 id = "YOUR_KV_NAMESPACE_ID"  # wrangler kv:namespace create "ADMIN_AUTH" で取得
 
-[env.production.vars]
+[[kv_namespaces]]
+binding = "OAUTH_AUTH"
+id = "YOUR_OAUTH_KV_NAMESPACE_ID"  # OAuth 用 WebAuthn credential/challenge 専用
+
+[vars]
 RP_ID = "your-domain.com"        # WebAuthn Relying Party ID
 RP_ORIGIN = "https://your-domain.com"  # オリジン
 RP_NAME = "Your Site Name"       # サイト名
+OAUTH_RP_ID = "your-domain.com"  # OAuth resource-owner WebAuthn RP ID
+OAUTH_RP_ORIGIN = "https://your-domain.com"
 ```
 
 #### シークレット（本番環境）
@@ -170,6 +176,26 @@ RP_NAME = "Your Site Name"       # サイト名
 ADMIN_USER_ID   # 管理者ユーザーID
 JWT_SECRET      # JWT シークレット
 ADMIN_SETUP_TOKEN # 初回登録用トークン（使い捨て）
+OAUTH_USER_ID   # OAuth resource-owner 用ユーザーID（ADMIN_USER_ID とは別設定）
+```
+
+OAuth の WebAuthn credential は `ADMIN_AUTH` へ暗黙にフォールバックしません。
+同一 RP の既存 admin passkey を初回 E2E に再利用する場合は、Cloudflare KV 上の
+`credentials:${ADMIN_USER_ID}` の値だけを `OAUTH_AUTH` の
+`credentials:${OAUTH_USER_ID}` へ明示的に複製してください。`challenge:*` はコピーしません。
+OAuth 専用の登録 UI/API は現時点では提供していないため、この複製は deployment bootstrap
+として扱います。
+
+```bash
+# 値をターミナルへ表示せず、credential レコードだけを複製する例
+opz run blog -- sh -c '\
+  set -eu; umask 077; tmp=$(mktemp); trap "rm -f $tmp" EXIT; \
+  npx wrangler kv key get "credentials:$ADMIN_USER_ID" \
+    --binding ADMIN_AUTH --remote --text > "$tmp"; \
+  test -s "$tmp"; \
+  npx wrangler kv key put "credentials:$OAUTH_USER_ID" \
+    --binding OAUTH_AUTH --remote --path "$tmp"\
+'
 ```
 
 #### 初回登録
@@ -201,7 +227,7 @@ ADMIN_SETUP_TOKEN # 初回登録用トークン（使い捨て）
 
 ### マイグレーション手順
 
-既存の DB がある場合は `migrate_admin_v03.sql` を適用してください。
+既存の DB がある場合は admin/content/OAuth の各 migration を適用してください。
 
 ```bash
 # ローカル
@@ -221,7 +247,7 @@ just deploy-migrate-db
 # 本番 DB 初期化
 just deploy-db
 
-# マイグレーション（v0.3 以降）
+# マイグレーション（admin/content/OAuth）
 just deploy-migrate-db
 ```
 

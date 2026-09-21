@@ -68,7 +68,7 @@ pub async fn authorize_protected_resource(
   authorization_header : String?,
   required_scope : String,
   now : Int,
-) -> ProtectedResourceAuthorization raise @cloudflare.D1Error {
+) -> ProtectedResourceAuthorization {
   if !validate_protected_resource_scope(required_scope) {
     return InvalidConfiguration
   }

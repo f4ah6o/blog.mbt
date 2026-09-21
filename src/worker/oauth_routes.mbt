@@ -64,7 +64,7 @@ fn authorization_page(options_json : String) -> String {
   "button.onclick=async()=>{button.disabled=true;try{" +
   "const c=await navigator.credentials.get({publicKey:{challenge:b64(o.challenge),timeout:o.timeout,rpId:o.rp_id,userVerification:o.user_verification,allowCredentials:o.allow_credentials.map(x=>({id:b64(x.id),type:x.type,transports:x.transports||[]}))}});" +
   "const r=await fetch('/oauth/authorize/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({challenge_id:o.challenge_id,credential_id:enc(c.rawId),raw_id:enc(c.rawId),client_data_json:enc(c.response.clientDataJSON),authenticator_data:enc(c.response.authenticatorData),signature:enc(c.response.signature)})});" +
-  "if(!r.ok)throw new Error('Passkey verification failed');location.href=await r.text();" +
+  "if(!r.ok){throw new Error('Passkey verification failed')}location.href=await r.text();" +
   "}catch(e){status.textContent=e.message;button.disabled=false}};" +
   "</script></body></html>"
 }
@@ -82,7 +82,8 @@ async fn handle_oauth_authorize(
     None => return json_response("{\"error\":\"server_configuration\"}", 500)
   }
   let client_id = get_search_param(url, "client_id").unwrap_or("")
-  let raw_metadata = match @oauth.fetch_client_metadata_document(client_id) {
+  let raw_metadata = match
+    @oauth.fetch_client_metadata_document(client_id, @config.SITE_URL, env) {
     Some(value) => value
     None => return json_response("{\"error\":\"invalid_client\"}", 400)
   }
@@ -119,8 +120,12 @@ async fn handle_oauth_authorize(
     None => return json_response("{\"error\":\"identity_unavailable\"}", 503)
   }
   let now = oauth_now()
-  let options = @identity.generate_auth_options(kv, user_id, rp_id)
+  // Keep the browser timeout aligned with the five-minute OAuth challenge TTL.
+  let options = @identity.generate_auth_options_with_timeout(
+    kv, user_id, rp_id, 300000,
+  )
   let challenge_id = options.challenge_identifier()
+  let challenge = options.challenge_value()
   let pending = match
     @oauth.pending_authorization(
       challenge_id,
@@ -141,11 +146,23 @@ async fn handle_oauth_authorize(
     return json_response("{\"error\":\"storage_unavailable\"}", 503)
   }
   let db : @cloudflare.D1Database = @core.identity(db_value)
-  @oauth.insert_pending_authorization(db, pending) catch {
-    _ => {
-      @identity.delete_challenge(kv, user_id, challenge_id)
-      return json_response("{\"error\":\"server_error\"}", 500)
-    }
+  let challenge_saved = @oauth.insert_oauth_webauthn_challenge(
+    db,
+    challenge_id,
+    user_id,
+    challenge,
+    now,
+    now + @oauth.OAUTH_WEBAUTHN_CHALLENGE_TTL_SECONDS,
+  )
+  if !challenge_saved {
+    @identity.delete_challenge(kv, user_id, challenge_id)
+    return json_response("{\"error\":\"server_error\"}", 500)
+  }
+  let db_error = @oauth.insert_pending_authorization(db, pending)
+  if db_error != "" {
+    @oauth.delete_oauth_webauthn_challenge(db, challenge_id, user_id)
+    @identity.delete_challenge(kv, user_id, challenge_id)
+    return json_response("{\"error\":\"server_error\"}", 500)
   }
   html_response_js(authorization_page(options.to_json().stringify()), 200)
 }
@@ -186,7 +203,19 @@ async fn handle_oauth_verify(
   if origin != issuer {
     return json_response("{\"error\":\"identity_unavailable\"}", 503)
   }
+  let db_value = get_db_from_env(env)
+  if @core.typeof_(db_value) == "undefined" || @core.is_null(db_value) {
+    return json_response("{\"error\":\"storage_unavailable\"}", 503)
+  }
+  let db : @cloudflare.D1Database = @core.identity(db_value)
   let now = oauth_now()
+  let challenge = match
+    @oauth.claim_oauth_webauthn_challenge(db, input.challenge_id, user_id, now) {
+    Some(value) => value
+    None =>
+      return json_response("{\"error\":\"identity_verification_failed\"}", 401)
+  }
+  @identity.delete_challenge(kv, user_id, input.challenge_id)
   let verify_request = @identity.AuthVerifyRequest::new(
     input.challenge_id,
     input.credential_id,
@@ -196,16 +225,17 @@ async fn handle_oauth_verify(
     input.signature,
   )
   match
-    @identity.verify_authentication(kv, user_id, rp_id, origin, verify_request) {
+    @identity.verify_authentication_with_challenge(
+      kv, user_id, rp_id, origin, verify_request, challenge,
+    ) {
     @identity.AuthVerifyResult::Success(_) => ()
-    _ =>
+    @identity.AuthVerifyResult::ChallengeInvalid =>
+      return json_response("{\"error\":\"identity_verification_failed\"}", 401)
+    @identity.AuthVerifyResult::CredentialNotFound =>
+      return json_response("{\"error\":\"identity_verification_failed\"}", 401)
+    @identity.AuthVerifyResult::VerificationFailed(_) =>
       return json_response("{\"error\":\"identity_verification_failed\"}", 401)
   }
-  let db_value = get_db_from_env(env)
-  if @core.typeof_(db_value) == "undefined" || @core.is_null(db_value) {
-    return json_response("{\"error\":\"storage_unavailable\"}", 503)
-  }
-  let db : @cloudflare.D1Database = @core.identity(db_value)
   let request = match
     @oauth.claim_pending_authorization(db, input.challenge_id, user_id, now) {
     Some(value) => value

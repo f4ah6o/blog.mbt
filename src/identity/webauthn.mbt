@@ -33,6 +33,16 @@ pub fn AuthOptionsResponse::challenge_identifier(
 }
 
 ///|
+/// Expose the challenge value to the OAuth D1 adapter. The value is already
+/// sent to the browser as part of the WebAuthn options and is not a bearer
+/// credential.
+pub fn AuthOptionsResponse::challenge_value(
+  self : AuthOptionsResponse,
+) -> String {
+  self.challenge
+}
+
+///|
 /// Registration options response (sent to browser)
 pub struct RegOptionsResponse {
   /// The challenge bytes (base64url encoded)
@@ -147,6 +157,17 @@ pub async fn generate_auth_options(
   user_id : String,
   rp_id : String,
 ) -> AuthOptionsResponse {
+  generate_auth_options_with_timeout(kv, user_id, rp_id, 60000)
+}
+
+///|
+/// Generate authentication options with a caller-selected browser timeout.
+pub async fn generate_auth_options_with_timeout(
+  kv : @core.Any,
+  user_id : String,
+  rp_id : String,
+  timeout : Int,
+) -> AuthOptionsResponse {
   // Get existing credentials for the user (async fn - call directly)
   let stored_creds = get_credentials(kv, user_id)
   //
@@ -168,7 +189,7 @@ pub async fn generate_auth_options(
   {
     challenge,
     challenge_id,
-    timeout: 60000,
+    timeout,
     rp_id,
     allow_credentials,
     user_verification: "preferred",
@@ -298,6 +319,23 @@ pub async fn verify_authentication(
     None => return ChallengeInvalid
     Some(c) => c.challenge
   }
+  verify_authentication_with_challenge(
+    kv, user_id, rp_id, origin, request, challenge,
+  )
+}
+
+///|
+/// Verify an authentication response using a challenge already claimed from
+/// durable OAuth storage. This variant is used by the OAuth route because its
+/// challenge must be readable across Cloudflare edge locations.
+pub async fn verify_authentication_with_challenge(
+  kv : @core.Any,
+  user_id : String,
+  rp_id : String,
+  origin : String,
+  request : AuthVerifyRequest,
+  challenge : String,
+) -> AuthVerifyResult {
   //
   // 2. Find stored credential (async fn - call directly)
   let stored_cred = find_credential_by_id(kv, user_id, request.credential_id)

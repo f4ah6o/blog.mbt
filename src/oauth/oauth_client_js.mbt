@@ -4,18 +4,24 @@
 /// and a JSON content-type check. All parsing and validation stays in MoonBit.
 extern "js" fn fetch_client_metadata_raw(
   url : String,
+  site_url : String,
+  env : @cloudflare.CloudflareEnv,
 ) -> @core.Promise[String?] =
-  #| async (url) => {
+  #| async (url, siteUrl, env) => {
   #|   try {
   #|     const controller = new AbortController();
   #|     const timer = setTimeout(() => controller.abort(), 5000);
-  #|     const response = await fetch(url, {
-  #|       method: "GET",
-  #|       headers: { "Accept": "application/json" },
-  #|       redirect: "error",
-  #|       credentials: "omit",
-  #|       signal: controller.signal,
-  #|     });
+  #|     const parsedUrl = new URL(url);
+  #|     const sameOrigin = parsedUrl.origin === new URL(siteUrl).origin;
+  #|     const response = sameOrigin && env?.ASSETS?.fetch
+  #|       ? await env.ASSETS.fetch(`https://assets.local${parsedUrl.pathname}`)
+  #|       : await fetch(url, {
+  #|           method: "GET",
+  #|           headers: { "Accept": "application/json" },
+  #|           redirect: "error",
+  #|           credentials: "omit",
+  #|           signal: controller.signal,
+  #|         });
   #|     clearTimeout(timer);
   #|     if (response.status !== 200) return undefined;
   #|     const contentType = (response.headers.get("content-type") || "")
@@ -34,9 +40,13 @@ extern "js" fn fetch_client_metadata_raw(
 ///|
 /// Fetch one CIMD document. A non-HTTPS or malformed identifier is rejected
 /// before any outbound request is made.
-pub async fn fetch_client_metadata_document(client_id : String) -> String? {
+pub async fn fetch_client_metadata_document(
+  client_id : String,
+  site_url : String,
+  env : @cloudflare.CloudflareEnv,
+) -> String? {
   if !validate_client_id_url(client_id) {
     return None
   }
-  fetch_client_metadata_raw(client_id).wait()
+  fetch_client_metadata_raw(client_id, site_url, env).wait()
 }

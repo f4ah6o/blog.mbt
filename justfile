@@ -54,10 +54,12 @@ build: gen-config
 init-db:
     npx wrangler d1 execute blog-db --local --file=schema.sql
 
-# Migrate local D1 database to content v0.4 schema
+# Migrate local D1 database to content v0.4 and OAuth v0.2 schemas
 migrate-db:
     npx wrangler d1 execute blog-db --local --file=migrate_admin_v03.sql
     npx wrangler d1 execute blog-db --local --file=migrate_content_v04.sql
+    npx wrangler d1 execute blog-db --local --file=migrate_oauth_v01.sql
+    npx wrangler d1 execute blog-db --local --file=migrate_oauth_v02.sql
 
 # Validate the private OKF bundle configured by BLOG_KNOWLEDGE_DIR
 content-check:
@@ -92,10 +94,11 @@ item_title := "blog"
 
 # Deploy to Cloudflare (production via 1Password)
 deploy: build
-    opz run {{item_title}} -- sh -c 'printf "%s" "$ADMIN_USER_ID" | npx wrangler secret put ADMIN_USER_ID --env production'
-    opz run {{item_title}} -- sh -c 'printf "%s" "$JWT_SECRET" | npx wrangler secret put JWT_SECRET --env production'
-    opz run {{item_title}} -- sh -c 'printf "%s" "$ADMIN_SETUP_TOKEN" | npx wrangler secret put ADMIN_SETUP_TOKEN --env production'
-    opz run {{item_title}} -- npx wrangler deploy --env production
+    opz run {{item_title}} -- sh -c 'printf "%s" "$ADMIN_USER_ID" | npx wrangler secret put ADMIN_USER_ID --name blog'
+    opz run {{item_title}} -- sh -c 'printf "%s" "$JWT_SECRET" | npx wrangler secret put JWT_SECRET --name blog'
+    opz run {{item_title}} -- sh -c 'printf "%s" "$ADMIN_SETUP_TOKEN" | npx wrangler secret put ADMIN_SETUP_TOKEN --name blog'
+    opz run {{item_title}} -- sh -c 'test -n "$OAUTH_USER_ID" && printf "%s" "$OAUTH_USER_ID" | npx wrangler secret put OAUTH_USER_ID --name blog'
+    opz run {{item_title}} -- npx wrangler deploy --keep-vars
 
 # Deploy to Cloudflare without secrets (uses local env)
 deploy-local: build
@@ -105,7 +108,9 @@ deploy-local: build
 deploy-db:
     npx wrangler d1 execute blog-db --remote --file=schema.sql
 
-# Migrate remote D1 database to content v0.4 schema
+# Migrate remote D1 database to content v0.4 and OAuth v0.2 schemas
 deploy-migrate-db:
     npx wrangler d1 execute blog-db --remote --file=migrate_admin_v03.sql
     npx wrangler d1 execute blog-db --remote --file=migrate_content_v04.sql
+    npx wrangler d1 execute blog-db --remote --file=migrate_oauth_v01.sql
+    npx wrangler d1 execute blog-db --remote --file=migrate_oauth_v02.sql

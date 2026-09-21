@@ -5,6 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 [assets]
 directory = "./static"
+binding = "ASSETS"
 
 [[d1_databases]]
 binding = "BLOG_DB"
@@ -16,16 +17,23 @@ database_name = "blog-db"
 binding = "ADMIN_AUTH"
 id = "YOUR_KV_NAMESPACE_ID"
 
+# Separate namespace for OAuth resource-owner WebAuthn credentials/challenges.
+[[kv_namespaces]]
+binding = "OAUTH_AUTH"
+id = "YOUR_OAUTH_KV_NAMESPACE_ID"
+
 [env.local]
 d1_databases = [
   { binding = "BLOG_DB", database_name = "blog-db", database_id = "local-blog-db" }
 ]
 
 # WebAuthn Relying Party configuration
-[env.production.vars]
+[vars]
 RP_ID = "your-domain.com"
 RP_ORIGIN = "https://your-domain.com"
 RP_NAME = "Your Site Name"
+OAUTH_RP_ID = "your-domain.com"
+OAUTH_RP_ORIGIN = "https://your-domain.com"
 
 [env.production]
 routes = [
@@ -35,6 +43,10 @@ routes = [
 [[env.production.kv_namespaces]]
 binding = "ADMIN_AUTH"
 id = "YOUR_KV_NAMESPACE_ID"
+
+[[env.production.kv_namespaces]]
+binding = "OAUTH_AUTH"
+id = "YOUR_OAUTH_KV_NAMESPACE_ID"
 
 [[env.production.d1_databases]]
 binding = "BLOG_DB"

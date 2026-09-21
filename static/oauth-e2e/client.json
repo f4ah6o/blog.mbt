@@ -1,0 +1,7 @@
+{
+  "client_id": "https://blog.f12o.com/oauth-e2e/client.json",
+  "client_name": "blog production OAuth E2E",
+  "redirect_uris": [
+    "https://blog.f12o.com/oauth-e2e/start.html"
+  ]
+}
