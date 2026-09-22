@@ -94,6 +94,24 @@ fn for_all_scope(value : String, predicate : (String) -> Bool) -> Bool {
 }
 
 ///|
+/// Whether every scope in `requested` is declared in `allowed`. Used to bound
+/// a registered client's authorization requests to the scope it recorded at
+/// registration; an empty `allowed` permits any supported scope.
+pub fn scope_subset(requested : String, allowed : String) -> Bool {
+  if allowed.is_empty() {
+    return true
+  }
+  for_all_scope(requested, fn(item) {
+    for value in allowed.split(" ") {
+      if value.to_owned() == item {
+        return true
+      }
+    }
+    false
+  })
+}
+
+///|
 /// Remove only trailing slashes from the configured origin/path. Callers must
 /// provide a configured absolute HTTPS URL, not an arbitrary Host header.
 pub fn canonical_base_url(value : String) -> String? {
@@ -142,6 +160,10 @@ pub fn authorization_server_metadata(base_url : String) -> String {
     code_challenge_methods_supported: ["S256"],
     scopes_supported: supported_scopes(),
     client_id_metadata_document_supported: true,
+    registration_endpoint: base + "/oauth/register",
+    token_endpoint_auth_methods_supported: [
+      "none", "client_secret_post", "client_secret_basic",
+    ],
     authorization_response_iss_parameter_supported: true,
   }
   ToJson::to_json(metadata).stringify()
@@ -165,6 +187,8 @@ struct AuthorizationServerMetadata {
   code_challenge_methods_supported : Array[String]
   scopes_supported : Array[String]
   client_id_metadata_document_supported : Bool
+  registration_endpoint : String
+  token_endpoint_auth_methods_supported : Array[String]
   authorization_response_iss_parameter_supported : Bool
 } derive(ToJson)
 

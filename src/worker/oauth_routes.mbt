@@ -82,14 +82,36 @@ async fn handle_oauth_authorize(
     None => return json_response("{\"error\":\"server_configuration\"}", 500)
   }
   let client_id = get_search_param(url, "client_id").unwrap_or("")
-  let raw_metadata = match
-    @oauth.fetch_client_metadata_document(client_id, @config.SITE_URL, env) {
-    Some(value) => value
-    None => return json_response("{\"error\":\"invalid_client\"}", 400)
+  let scope_param = get_search_param(url, "scope").unwrap_or("")
+  // CIMD client_ids are HTTPS metadata URLs; anything else is resolved
+  // against clients stored by RFC 7591 dynamic registration.
+  let (client, registered_scope) = if @oauth.validate_client_id_url(client_id) {
+    let raw_metadata = match
+      @oauth.fetch_client_metadata_document(client_id, @config.SITE_URL, env) {
+      Some(value) => value
+      None => return json_response("{\"error\":\"invalid_client\"}", 400)
+    }
+    match @oauth.parse_client_metadata(client_id, raw_metadata) {
+      Some(value) => (value, "")
+      None => return json_response("{\"error\":\"invalid_client\"}", 400)
+    }
+  } else {
+    let db_value = get_db_from_env(env)
+    if @core.typeof_(db_value) == "undefined" || @core.is_null(db_value) {
+      return json_response("{\"error\":\"storage_unavailable\"}", 503)
+    }
+    let db : @cloudflare.D1Database = @core.identity(db_value)
+    match @oauth.get_oauth_client(db, client_id) {
+      Some(stored) =>
+        match @oauth.stored_client_metadata(client_id, stored) {
+          Some(value) => (value, stored.scope)
+          None => return json_response("{\"error\":\"invalid_client\"}", 400)
+        }
+      None => return json_response("{\"error\":\"invalid_client\"}", 400)
+    }
   }
-  let client = match @oauth.parse_client_metadata(client_id, raw_metadata) {
-    Some(value) => value
-    None => return json_response("{\"error\":\"invalid_client\"}", 400)
+  if !@oauth.scope_subset(scope_param, registered_scope) {
+    return oauth_error_response(url, Some(client), "invalid_scope")
   }
   let request = match
     @oauth.validate_authorization_request(
@@ -97,7 +119,7 @@ async fn handle_oauth_authorize(
       client_id,
       get_search_param(url, "redirect_uri").unwrap_or(""),
       get_search_param(url, "resource").unwrap_or(""),
-      get_search_param(url, "scope").unwrap_or(""),
+      scope_param,
       get_search_param(url, "code_challenge").unwrap_or(""),
       get_search_param(url, "code_challenge_method").unwrap_or(""),
       get_search_param(url, "state"),
@@ -312,6 +334,20 @@ async fn handle_oauth_token(
   }
   let db : @cloudflare.D1Database = @core.identity(db_value)
   let now = oauth_now()
+  // Confidential clients registered through RFC 7591 must present their
+  // issued secret; unregistered (CIMD) and public clients skip this check.
+  let token_client_id = request.client_id().unwrap_or("")
+  let presented_secret = match request.client_secret() {
+    Some(value) => value
+    None => oauth_basic_client_secret(req, token_client_id)
+  }
+  let stored_client = @oauth.get_oauth_client(db, token_client_id)
+  let secret_ok = @oauth.registered_client_secret_ok(
+    stored_client, presented_secret,
+  )
+  if !secret_ok {
+    return oauth_token_error("invalid_client", 400)
+  }
   match grant {
     @oauth.TokenGrant::AuthorizationCode => {
       let code = request.code().unwrap()
@@ -479,6 +515,52 @@ async fn handle_oauth_token(
 }
 
 ///|
+/// RFC 7591 registration: validate the client metadata, persist the client,
+/// and return the issued identifier (plus the secret for confidential
+/// clients). The response uses the token response writer so it gets
+/// JSON + no-store caching headers.
+async fn handle_oauth_register(
+  env : @cloudflare.CloudflareEnv,
+  req : @cloudflare.CloudflareRequest,
+) -> @http.Response {
+  if oauth_content_type(req) != "application/json" {
+    return json_response("{\"error\":\"invalid_client_metadata\"}", 400)
+  }
+  let http_req : @http.Request = @core.identity(req)
+  let registration = match @oauth.parse_client_registration(http_req.text()) {
+    Some(value) => value
+    None => return json_response("{\"error\":\"invalid_client_metadata\"}", 400)
+  }
+  let db_value = get_db_from_env(env)
+  if @core.typeof_(db_value) == "undefined" || @core.is_null(db_value) {
+    return json_response("{\"error\":\"server_error\"}", 500)
+  }
+  let db : @cloudflare.D1Database = @core.identity(db_value)
+  let now = oauth_now()
+  let client_id = "dcr-" + @oauth.generate_opaque_secret()
+  let client_secret : String? = if registration.requires_secret() {
+    Some(@oauth.generate_opaque_secret())
+  } else {
+    None
+  }
+  let secret_hash : String? = match client_secret {
+    Some(secret) => Some(@oauth.sha256_hex(secret))
+    None => None
+  }
+  let stored = @oauth.insert_oauth_client(
+    db,
+    registration.record(client_id, secret_hash, now),
+  )
+  if !stored {
+    return json_response("{\"error\":\"server_error\"}", 500)
+  }
+  token_json_response(
+    registration.response_json(client_id, client_secret, now),
+    201,
+  )
+}
+
+///|
 pub async fn handle_oauth_request(
   req : @cloudflare.CloudflareRequest,
   env : @cloudflare.CloudflareEnv,
@@ -492,6 +574,8 @@ pub async fn handle_oauth_request(
     Some(handle_oauth_verify(env, req))
   } else if pathname == "/oauth/token" && http_method == "POST" {
     Some(handle_oauth_token(env, req))
+  } else if pathname == "/oauth/register" && http_method == "POST" {
+    Some(handle_oauth_register(env, req))
   } else {
     None
   }
@@ -510,6 +594,32 @@ extern "js" fn oauth_content_type(
   req : @cloudflare.CloudflareRequest,
 ) -> String =
   #| (request) => (request.headers.get("content-type") || "").split(";", 1)[0].trim().toLowerCase()
+
+///|
+/// Extract the client_secret from HTTP Basic authentication for token
+/// endpoint client authentication. Both sides of the credential are
+/// form-decoded per RFC 6749; an empty string means no usable credential.
+extern "js" fn oauth_basic_client_secret(
+  req : @cloudflare.CloudflareRequest,
+  client_id : String,
+) -> String =
+  #| (request, clientId) => {
+  #|   const header = request.headers.get("authorization") || "";
+  #|   if (!header.toLowerCase().startsWith("basic ")) return "";
+  #|   try {
+  #|     const decoded = atob(header.slice(6).trim());
+  #|     const separator = decoded.indexOf(":");
+  #|     if (separator < 0) return "";
+  #|     let id = decoded.slice(0, separator);
+  #|     let secret = decoded.slice(separator + 1);
+  #|     try { id = decodeURIComponent(id); } catch (_) {}
+  #|     try { secret = decodeURIComponent(secret); } catch (_) {}
+  #|     if (id !== clientId) return "";
+  #|     return secret;
+  #|   } catch (_) {
+  #|     return "";
+  #|   }
+  #| }
 
 ///|
 extern "js" fn token_json_response(

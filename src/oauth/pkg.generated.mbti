@@ -10,6 +10,8 @@ import {
 // Values
 pub const ACCESS_TOKEN_TTL_SECONDS : Int = 3600
 
+pub const MAX_REGISTRATION_BODY_LENGTH : Int = 65536
+
 pub const OAUTH_WEBAUTHN_CHALLENGE_TTL_SECONDS : Int = 300
 
 pub const PENDING_AUTHORIZATION_TTL_SECONDS : Int = 300
@@ -52,9 +54,13 @@ pub async fn fetch_client_metadata_document(String, String, @cloudflare.Cloudfla
 
 pub async fn generate_opaque_secret() -> String
 
+pub async fn get_oauth_client(@cloudflare.D1Database, String) -> StoredOAuthClient?
+
 pub async fn insert_access_token(@cloudflare.D1Database, AccessTokenRecord) -> Unit raise @cloudflare.D1Error
 
 pub async fn insert_authorization_code(@cloudflare.D1Database, AuthorizationCodeRecord) -> Unit
+
+pub async fn insert_oauth_client(@cloudflare.D1Database, OAuthClientRecord) -> Bool
 
 pub async fn insert_oauth_webauthn_challenge(@cloudflare.D1Database, String, String, String, Int, Int) -> Bool
 
@@ -68,11 +74,13 @@ pub async fn lookup_access_token(@cloudflare.D1Database, String, String, String,
 
 pub async fn lookup_access_token_for_resource(@cloudflare.D1Database, String, String, Int) -> AccessTokenRecord?
 
-pub async fn lookup_refresh_token(@cloudflare.D1Database, String, String, String, Int) -> RefreshTokenRecord? raise @cloudflare.D1Error
+pub async fn lookup_refresh_token(@cloudflare.D1Database, String, String, String, Int) -> RefreshTokenRecord? raise OAuthStorageError
 
 pub fn parse_bearer_header(String) -> BearerToken?
 
 pub fn parse_client_metadata(String, String) -> ClientMetadata?
+
+pub fn parse_client_registration(String) -> ClientRegistration?
 
 pub fn parse_oauth_token_form(String) -> OAuthTokenRequest?
 
@@ -102,21 +110,29 @@ pub fn refresh_rotation_decision(Bool, Int?, Int?, Int, Int) -> RefreshRotationD
 
 pub fn refresh_token_record(String, String, String, String, String, Int, Int) -> RefreshTokenRecord?
 
-pub async fn refresh_token_replay_detected(@cloudflare.D1Database, String, String, String) -> Bool raise @cloudflare.D1Error
+pub async fn refresh_token_replay_detected(@cloudflare.D1Database, String, String, String) -> Bool raise OAuthStorageError
+
+pub fn registered_client_metadata(String, String, Array[String]) -> ClientMetadata?
+
+pub async fn registered_client_secret_ok(StoredOAuthClient?, String) -> Bool
 
 pub async fn revoke_access_token(@cloudflare.D1Database, String, String, String, Int) -> Unit raise @cloudflare.D1Error
 
 pub async fn revoke_refresh_family(@cloudflare.D1Database, String, Int) -> Unit raise @cloudflare.D1Error
 
-pub async fn revoke_refresh_family_for_token(@cloudflare.D1Database, String, String, String, Int) -> Unit raise @cloudflare.D1Error
+pub async fn revoke_refresh_family_for_token(@cloudflare.D1Database, String, String, String, Int) -> Unit raise OAuthStorageError
 
 pub async fn rotate_refresh_token(@cloudflare.D1Database, String, String, String, String, Int, Int, Int) -> RefreshRotationDecision raise @cloudflare.D1Error
 
-pub async fn rotate_refresh_token_with_access(@cloudflare.D1Database, String, String, String, String, Int, Int, Int, AccessTokenRecord) -> RefreshRotationDecision raise @cloudflare.D1Error
+pub async fn rotate_refresh_token_with_access(@cloudflare.D1Database, String, String, String, String, Int, Int, Int, AccessTokenRecord) -> RefreshRotationDecision raise OAuthStorageError
 
 pub fn scope_contains(String, String) -> Bool
 
+pub fn scope_subset(String, String) -> Bool
+
 pub async fn sha256_hex(String) -> String
+
+pub fn stored_client_metadata(String, StoredOAuthClient) -> ClientMetadata?
 
 pub fn supported_scopes() -> Array[String]
 
@@ -143,6 +159,9 @@ pub fn validate_sha256_hex(String) -> Bool
 pub async fn verify_pkce_s256(String, String) -> Bool
 
 // Errors
+pub suberror OAuthStorageError {
+  OAuthStorageError(String)
+}
 
 // Types and methods
 pub struct AccessTokenRecord {
@@ -204,7 +223,31 @@ pub fn ClientMetadata::redirect_uri_allowed(Self, String) -> Bool
 
 type ClientMetadataDocument derive(@json.FromJson)
 
+pub struct ClientRegistration {
+  client_name : String
+  redirect_uris : Array[String]
+  token_endpoint_auth_method : String
+  grant_types : Array[String]
+  scope : String
+}
+pub fn ClientRegistration::record(Self, String, String?, Int) -> OAuthClientRecord
+pub fn ClientRegistration::requires_secret(Self) -> Bool
+pub fn ClientRegistration::response_json(Self, String, String?, Int) -> String
+
+type ClientRegistrationRequest derive(@json.FromJson)
+
 type FormPair derive(@json.FromJson)
+
+pub struct OAuthClientRecord {
+  client_id : String
+  client_name : String
+  redirect_uris : Array[String]
+  client_secret_hash : String?
+  scope : String
+  created_at : Int
+}
+
+type OAuthClientRow derive(@json.FromJson)
 
 pub struct OAuthTokenRequest {
   grant_type : String
@@ -214,8 +257,10 @@ pub struct OAuthTokenRequest {
   resource : String?
   code_verifier : String?
   refresh_token : String?
+  client_secret : String?
 }
 pub fn OAuthTokenRequest::client_id(Self) -> String?
+pub fn OAuthTokenRequest::client_secret(Self) -> String?
 pub fn OAuthTokenRequest::code(Self) -> String?
 pub fn OAuthTokenRequest::code_verifier(Self) -> String?
 pub fn OAuthTokenRequest::grant_type(Self) -> String
@@ -266,6 +311,15 @@ pub struct RefreshTokenRecord {
   expires_at : Int
 }
 pub fn RefreshTokenRecord::scope(Self) -> String
+
+type RefreshTokenRow derive(@json.FromJson)
+
+pub(all) struct StoredOAuthClient {
+  client_name : String
+  redirect_uris : String
+  client_secret_hash : String?
+  scope : String
+}
 
 pub(all) enum TokenGrant {
   AuthorizationCode
