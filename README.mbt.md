@@ -302,6 +302,20 @@ PKCE (S256) + WebAuthn ベースの同意画面でトークンを発行します
   `WWW-Authenticate` チャレンジ
 - `offline_access` で refresh token ローテーションも発行可能
 
+### クライアント登録
+
+OAuth クライアントは2つの経路で解決されます。
+
+- **CIMD (Client ID Metadata Document)**: `client_id` が HTTPS の
+  メタデータ文書 URL の場合、その文書を取得して検証します（推奨経路）。
+- **DCR (RFC 7591)**: `POST https://blog.f12o.com/oauth/register` で動的
+  クライアント登録が可能です。ChatGPT のように事前登録された
+  `client_id`/`client_secret` を必要とするクライアント向けです。
+  authorization-server metadata の `registration_endpoint` で広告されるため、
+  対応クライアントは自動で登録します。`token_endpoint_auth_method` が
+  `none` 以外のクライアントには `client_secret` を一度だけ発行し、
+  サーバーには SHA-256 ハッシュのみ保存します。
+
 ### ツール
 
 `list_posts`, `get_post`, `create_post`, `update_post`, `publish_post` の5つ。

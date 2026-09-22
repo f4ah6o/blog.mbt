@@ -54,12 +54,13 @@ build: gen-config
 init-db:
     npx wrangler d1 execute blog-db --local --file=schema.sql
 
-# Migrate local D1 database to content v0.4 and OAuth v0.2 schemas
+# Migrate local D1 database to content v0.4 and OAuth v0.3 schemas
 migrate-db:
     npx wrangler d1 execute blog-db --local --file=migrate_admin_v03.sql
     npx wrangler d1 execute blog-db --local --file=migrate_content_v04.sql
     npx wrangler d1 execute blog-db --local --file=migrate_oauth_v01.sql
     npx wrangler d1 execute blog-db --local --file=migrate_oauth_v02.sql
+    npx wrangler d1 execute blog-db --local --file=migrate_oauth_v03.sql
 
 # Validate the private OKF bundle configured by BLOG_KNOWLEDGE_DIR
 content-check:
@@ -108,9 +109,10 @@ deploy-local: build
 deploy-db:
     npx wrangler d1 execute blog-db --remote --file=schema.sql
 
-# Migrate remote D1 database to content v0.4 and OAuth v0.2 schemas
+# Migrate remote D1 database to content v0.4 and OAuth v0.3 schemas
 deploy-migrate-db:
     npx wrangler d1 execute blog-db --remote --file=migrate_admin_v03.sql
     npx wrangler d1 execute blog-db --remote --file=migrate_content_v04.sql
     npx wrangler d1 execute blog-db --remote --file=migrate_oauth_v01.sql
     npx wrangler d1 execute blog-db --remote --file=migrate_oauth_v02.sql
+    npx wrangler d1 execute blog-db --remote --file=migrate_oauth_v03.sql

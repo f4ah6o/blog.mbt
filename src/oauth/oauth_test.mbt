@@ -660,3 +660,220 @@ test "token grant validation distinguishes supported grant requirements" {
   let unsupported = parse_oauth_token_form("grant_type=client_credentials").unwrap()
   assert_eq(validate_oauth_token_request(unsupported), None)
 }
+
+///|
+test "dynamic client registration validates redirect and grant metadata" {
+  let valid = parse_client_registration(
+    "{\"redirect_uris\":[\"https://client.example/callback\"],\"client_name\":\"ChatGPT\"}",
+  ).unwrap()
+  assert_eq(valid.client_name, "ChatGPT")
+  assert_eq(valid.token_endpoint_auth_method, "none")
+  assert_eq(valid.requires_secret(), false)
+  assert_eq(valid.grant_types, ["authorization_code", "refresh_token"])
+  assert_eq(
+    parse_client_registration(
+      "{\"redirect_uris\":[\"https://client.example/callback\"],\"token_endpoint_auth_method\":\"client_secret_basic\"}",
+    )
+    .unwrap()
+    .requires_secret(),
+    true,
+  )
+  assert_eq(
+    parse_client_registration(
+      "{\"redirect_uris\":[\"https://client.example/callback\"],\"token_endpoint_auth_method\":\"private_key_jwt\"}",
+    )
+    is None,
+    true,
+  )
+  assert_eq(parse_client_registration("{\"redirect_uris\":[]}") is None, true)
+  assert_eq(parse_client_registration("{\"client_name\":\"x\"}") is None, true)
+  assert_eq(
+    parse_client_registration(
+      "{\"redirect_uris\":[\"http://client.example/callback\"]}",
+    )
+    is None,
+    true,
+  )
+  assert_eq(
+    parse_client_registration(
+      "{\"redirect_uris\":[\"https://client.example/callback#frag\"]}",
+    )
+    is None,
+    true,
+  )
+  assert_eq(
+    parse_client_registration(
+      "{\"redirect_uris\":[\"https://client.example/callback\"],\"grant_types\":[\"client_credentials\"]}",
+    )
+    is None,
+    true,
+  )
+  assert_eq(
+    parse_client_registration(
+      "{\"redirect_uris\":[\"https://client.example/callback\"],\"grant_types\":[\"refresh_token\"]}",
+    )
+    is None,
+    true,
+  )
+  assert_eq(
+    parse_client_registration(
+      "{\"redirect_uris\":[\"https://client.example/callback\"],\"response_types\":[\"token\"]}",
+    )
+    is None,
+    true,
+  )
+  assert_eq(
+    parse_client_registration(
+      "{\"redirect_uris\":[\"https://client.example/callback\"],\"scope\":\"blog:admin\"}",
+    )
+    is None,
+    true,
+  )
+  assert_eq(
+    parse_client_registration(
+      "{\"redirect_uris\":[\"https://client.example/callback\"],\"scope\":\"mcp:discover blog:read\"}",
+    ).unwrap().scope,
+    "mcp:discover blog:read",
+  )
+  assert_eq(parse_client_registration("not json") is None, true)
+  assert_eq(parse_client_registration("") is None, true)
+}
+
+///|
+test "registration responses bind issued client material" {
+  let registration = parse_client_registration(
+    "{\"redirect_uris\":[\"https://client.example/callback\"],\"client_name\":\"ChatGPT\",\"token_endpoint_auth_method\":\"client_secret_post\",\"scope\":\"blog:read\"}",
+  ).unwrap()
+  let record = registration.record("dcr-abc", Some("hash"), 100)
+  assert_eq(record.client_id, "dcr-abc")
+  assert_eq(record.client_name, "ChatGPT")
+  assert_eq(record.client_secret_hash, Some("hash"))
+  assert_eq(record.scope, "blog:read")
+  let body = registration.response_json("dcr-abc", Some("secret"), 100)
+  let parsed = @json.parse(body) catch { _ => fail("expected valid json") }
+  match parsed {
+    Object(map) => {
+      assert_eq(map["client_id"], "dcr-abc".to_json())
+      assert_eq(map["client_secret"], "secret".to_json())
+      assert_eq(
+        map["token_endpoint_auth_method"],
+        "client_secret_post".to_json(),
+      )
+      assert_eq(map["scope"], "blog:read".to_json())
+    }
+    _ => fail("expected response object")
+  }
+  assert_eq(registration.record("dcr-abc", None, 100).client_secret_hash, None)
+  let public = parse_client_registration(
+    "{\"redirect_uris\":[\"https://client.example/callback\"]}",
+  ).unwrap()
+  let public_parsed = @json.parse(public.response_json("dcr-def", None, 100)) catch {
+    _ => fail("expected valid json")
+  }
+  match public_parsed {
+    Object(map) => {
+      assert_eq(map.contains("client_secret"), false)
+      assert_eq(map["client_name"], "dcr-def".to_json())
+    }
+    _ => fail("expected response object")
+  }
+}
+
+///|
+test "registered client metadata rebuilds the authorize-time shape" {
+  assert_eq(
+    registered_client_metadata("dcr-abc", "ChatGPT", [
+      "https://client.example/callback",
+    ])
+    is Some(_),
+    true,
+  )
+  assert_eq(
+    registered_client_metadata("", "ChatGPT", [
+      "https://client.example/callback",
+    ])
+    is None,
+    true,
+  )
+  assert_eq(registered_client_metadata("dcr-abc", "ChatGPT", []) is None, true)
+  assert_eq(
+    registered_client_metadata("dcr-abc", "ChatGPT", [
+      "http://client.example/callback",
+    ])
+    is None,
+    true,
+  )
+  match
+    registered_client_metadata("dcr-abc", "ChatGPT", [
+      "https://client.example/callback",
+    ]) {
+    Some(client) => {
+      assert_eq(
+        client.redirect_uri_allowed("https://client.example/callback"),
+        true,
+      )
+      assert_eq(
+        client.redirect_uri_allowed("https://client.example/other"),
+        false,
+      )
+    }
+    None => fail("expected registered metadata")
+  }
+}
+
+///|
+test "stored client metadata parses and revalidates persisted JSON" {
+  let stored = StoredOAuthClient::{
+    client_name: "ChatGPT",
+    redirect_uris: "[\"https://client.example/callback\"]",
+    client_secret_hash: None,
+    scope: "blog:read",
+  }
+  assert_eq(stored_client_metadata("dcr-abc", stored) is Some(_), true)
+  let malformed = StoredOAuthClient::{
+    client_name: "ChatGPT",
+    redirect_uris: "not json",
+    client_secret_hash: None,
+    scope: "",
+  }
+  assert_eq(stored_client_metadata("dcr-abc", malformed) is None, true)
+  let unsafe_uri = StoredOAuthClient::{
+    client_name: "ChatGPT",
+    redirect_uris: "[\"http://client.example/callback\"]",
+    client_secret_hash: None,
+    scope: "",
+  }
+  assert_eq(stored_client_metadata("dcr-abc", unsafe_uri) is None, true)
+}
+
+///|
+test "scope subset bounds registered client grants" {
+  assert_eq(scope_subset("blog:read", ""), true)
+  assert_eq(scope_subset("blog:read", "blog:read blog:write"), true)
+  assert_eq(scope_subset("blog:read blog:publish", "blog:read"), false)
+  assert_eq(scope_subset("blog:read", "blog:write"), false)
+}
+
+///|
+test "token form accepts an optional client_secret field" {
+  let code = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+  let verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+  let auth = parse_oauth_token_form(
+    "grant_type=authorization_code&code=" +
+    code +
+    "&client_id=dcr-abc&redirect_uri=https%3A%2F%2Fclient.example%2Fcallback&resource=https%3A%2F%2Fblog.example%2Fmcp&code_verifier=" +
+    verifier +
+    "&client_secret=secret",
+  ).unwrap()
+  assert_eq(validate_oauth_token_request(auth), Some(AuthorizationCode))
+  assert_eq(auth.client_secret(), Some("secret"))
+  assert_eq(
+    parse_oauth_token_form(
+      "grant_type=refresh_token&refresh_token=" +
+      code +
+      "&client_id=dcr-abc&resource=https%3A%2F%2Fblog.example%2Fmcp&client_secret=a&client_secret=b",
+    )
+    is None,
+    true,
+  )
+}

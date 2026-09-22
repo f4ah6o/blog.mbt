@@ -1,4 +1,12 @@
 ///|
+/// Storage-layer failure raised by the native D1 adapters in this module.
+/// Mirrors `mizchi/cloudflare.D1Error`, which is read-only outside its package
+/// and so cannot be constructed here.
+pub suberror OAuthStorageError {
+  OAuthStorageError(String)
+}
+
+///|
 pub struct AuthorizationCodeRecord {
   code_hash : String
   client_id : String
@@ -694,38 +702,110 @@ pub async fn insert_refresh_token(
 }
 
 ///|
+/// Read a refresh-token row through the native D1 object for the Worker
+/// runtime. Returns "err" on a storage failure so the caller can tell a
+/// backend error apart from a missing row.
+extern "js" fn lookup_refresh_token_js(
+  db : @core.Any,
+  token_hash : String,
+  client_id : String,
+  resource : String,
+  now : Int,
+) -> @core.Promise[String?] =
+  #| async (db, tokenHash, clientId, resource, now) => {
+  #|   try {
+  #|     const row = await db
+  #|       .prepare("SELECT token_hash, family_hash, client_id, resource, scope, created_at, expires_at FROM oauth_refresh_tokens WHERE token_hash = ? AND client_id = ? AND resource = ? AND expires_at > ? AND consumed_at IS NULL AND revoked_at IS NULL")
+  #|       .bind(tokenHash, clientId, resource, now)
+  #|       .first();
+  #|     if (!row) return undefined;
+  #|     return JSON.stringify({
+  #|       token_hash: row.token_hash,
+  #|       family_hash: row.family_hash,
+  #|       client_id: row.client_id,
+  #|       resource: row.resource,
+  #|       scope: row.scope,
+  #|       created_at: row.created_at,
+  #|       expires_at: row.expires_at,
+  #|     });
+  #|   } catch (_) {
+  #|     return "err";
+  #|   }
+  #| }
+
+///|
+struct RefreshTokenRow {
+  token_hash : String
+  family_hash : String
+  client_id : String
+  resource : String
+  scope : String
+  created_at : Int
+  expires_at : Int
+} derive(FromJson)
+
+///|
 pub async fn lookup_refresh_token(
   db : @cloudflare.D1Database,
   token_hash : String,
   client_id : String,
   resource : String,
   now : Int,
-) -> RefreshTokenRecord? raise @cloudflare.D1Error {
-  let row = db
-    .prepare(
-      "SELECT token_hash, family_hash, client_id, resource, scope, created_at, expires_at FROM oauth_refresh_tokens WHERE token_hash = ? AND client_id = ? AND resource = ? AND expires_at > ? AND consumed_at IS NULL AND revoked_at IS NULL",
-    )
-    .bind([
-      @core.any(token_hash),
-      @core.any(client_id),
-      @core.any(resource),
-      @core.any(now),
-    ])
-    .first()
-  match row {
-    None => None
-    Some(value) =>
+) -> RefreshTokenRecord? raise OAuthStorageError {
+  let raw = lookup_refresh_token_js(
+    db.as_any(),
+    token_hash,
+    client_id,
+    resource,
+    now,
+  ).wait() catch {
+    _ => raise OAuthStorageError("d1_lookup_failed")
+  }
+  match raw {
+    Some("err") => raise OAuthStorageError("d1_lookup_failed")
+    Some(value) => {
+      let json = @json.parse(value) catch {
+        _ => raise OAuthStorageError("d1_lookup_failed")
+      }
+      let row : RefreshTokenRow = @json.from_json(json) catch {
+        _ => raise OAuthStorageError("d1_lookup_failed")
+      }
       refresh_token_record(
-        value["token_hash"].cast(),
-        value["family_hash"].cast(),
-        value["client_id"].cast(),
-        value["resource"].cast(),
-        value["scope"].cast(),
-        @cloudflare.js_number_to_int(value["created_at"]),
-        @cloudflare.js_number_to_int(value["expires_at"]),
+        row.token_hash,
+        row.family_hash,
+        row.client_id,
+        row.resource,
+        row.scope,
+        row.created_at,
+        row.expires_at,
       )
+    }
+    None => None
   }
 }
+
+///|
+/// Check the consumed_at marker of an exact-bound refresh-token row through
+/// native D1. Returns 1 when visibly consumed, 0 when absent or unconsumed,
+/// and -1 on a storage failure.
+extern "js" fn refresh_token_consumed_js(
+  db : @core.Any,
+  token_hash : String,
+  client_id : String,
+  resource : String,
+) -> @core.Promise[Int] =
+  #| async (db, tokenHash, clientId, resource) => {
+  #|   try {
+  #|     const row = await db
+  #|       .prepare("SELECT consumed_at FROM oauth_refresh_tokens WHERE token_hash = ? AND client_id = ? AND resource = ?")
+  #|       .bind(tokenHash, clientId, resource)
+  #|       .first();
+  #|     if (!row) return 0;
+  #|     return row.consumed_at === null || row.consumed_at === undefined ? 0 : 1;
+  #|   } catch (_) {
+  #|     return -1;
+  #|   }
+  #| }
 
 ///|
 /// Classify an otherwise unusable refresh token as replay only when the exact
@@ -735,17 +815,19 @@ pub async fn refresh_token_replay_detected(
   token_hash : String,
   client_id : String,
   resource : String,
-) -> Bool raise @cloudflare.D1Error {
-  let row = db
-    .prepare(
-      "SELECT consumed_at FROM oauth_refresh_tokens WHERE token_hash = ? AND client_id = ? AND resource = ?",
-    )
-    .bind([@core.any(token_hash), @core.any(client_id), @core.any(resource)])
-    .first()
-  match row {
-    Some(value) => !@core.is_null(value["consumed_at"])
-    None => false
+) -> Bool raise OAuthStorageError {
+  let result = refresh_token_consumed_js(
+    db.as_any(),
+    token_hash,
+    client_id,
+    resource,
+  ).wait() catch {
+    _ => raise OAuthStorageError("d1_lookup_failed")
   }
+  if result < 0 {
+    raise OAuthStorageError("d1_lookup_failed")
+  }
+  result == 1
 }
 
 ///|
@@ -813,6 +895,49 @@ pub async fn rotate_refresh_token(
 
 ///|
 /// Rotate a refresh token and persist its replacement access token in the same
+/// D1 batch, through the native D1 object for the Worker runtime. Returns 1
+/// (rotated), 2 (replay), 0 (invalid), or -1 (storage error).
+extern "js" fn rotate_refresh_token_with_access_js(
+  db : @core.Any,
+  old_token_hash : String,
+  client_id : String,
+  resource : String,
+  replacement_token_hash : String,
+  replacement_created_at : Int,
+  replacement_expires_at : Int,
+  now : Int,
+  access_token_hash : String,
+  access_created_at : Int,
+  access_expires_at : Int,
+) -> @core.Promise[Int] =
+  #| async (db, oldTokenHash, clientId, resource, replacementTokenHash, replacementCreatedAt, replacementExpiresAt, now, accessTokenHash, accessCreatedAt, accessExpiresAt) => {
+  #|   try {
+  #|     const update = db
+  #|       .prepare("UPDATE oauth_refresh_tokens SET consumed_at = ?, replacement_token_hash = ? WHERE token_hash = ? AND client_id = ? AND resource = ? AND expires_at > ? AND consumed_at IS NULL AND revoked_at IS NULL")
+  #|       .bind(now, replacementTokenHash, oldTokenHash, clientId, resource, now);
+  #|     const insertRefresh = db
+  #|       .prepare("INSERT INTO oauth_refresh_tokens (token_hash, family_hash, client_id, resource, scope, created_at, expires_at) SELECT ?, family_hash, client_id, resource, scope, ?, ? FROM oauth_refresh_tokens WHERE token_hash = ? AND client_id = ? AND resource = ? AND consumed_at = ? AND replacement_token_hash = ?")
+  #|       .bind(replacementTokenHash, replacementCreatedAt, replacementExpiresAt, oldTokenHash, clientId, resource, now, replacementTokenHash);
+  #|     const insertAccess = db
+  #|       .prepare("INSERT INTO oauth_access_tokens (token_hash, client_id, resource, scope, created_at, expires_at) SELECT ?, client_id, resource, scope, ?, ? FROM oauth_refresh_tokens WHERE token_hash = ? AND client_id = ? AND resource = ? AND consumed_at = ? AND replacement_token_hash = ?")
+  #|       .bind(accessTokenHash, accessCreatedAt, accessExpiresAt, oldTokenHash, clientId, resource, now, replacementTokenHash);
+  #|     const results = await db.batch([update, insertRefresh, insertAccess]);
+  #|     if (!results || results.length !== 3) return -1;
+  #|     const ok = results.every((r) => r && r.success !== false && r.meta?.changes === 1);
+  #|     if (ok) return 1;
+  #|     const row = await db
+  #|       .prepare("SELECT consumed_at FROM oauth_refresh_tokens WHERE token_hash = ? AND client_id = ? AND resource = ?")
+  #|       .bind(oldTokenHash, clientId, resource)
+  #|       .first();
+  #|     if (row && row.consumed_at !== null && row.consumed_at !== undefined) return 2;
+  #|     return 0;
+  #|   } catch (_) {
+  #|     return -1;
+  #|   }
+  #| }
+
+///|
+/// Rotate a refresh token and persist its replacement access token in the same
 /// D1 batch. No replacement secret is returned unless all durable writes commit.
 pub async fn rotate_refresh_token_with_access(
   db : @cloudflare.D1Database,
@@ -824,68 +949,27 @@ pub async fn rotate_refresh_token_with_access(
   replacement_expires_at : Int,
   now : Int,
   access : AccessTokenRecord,
-) -> RefreshRotationDecision raise @cloudflare.D1Error {
-  let update = db
-    .prepare(
-      "UPDATE oauth_refresh_tokens SET consumed_at = ?, replacement_token_hash = ? WHERE token_hash = ? AND client_id = ? AND resource = ? AND expires_at > ? AND consumed_at IS NULL AND revoked_at IS NULL",
-    )
-    .bind([
-      @core.any(now),
-      @core.any(replacement_token_hash),
-      @core.any(old_token_hash),
-      @core.any(client_id),
-      @core.any(resource),
-      @core.any(now),
-    ])
-  let insert_refresh = db
-    .prepare(
-      "INSERT INTO oauth_refresh_tokens (token_hash, family_hash, client_id, resource, scope, created_at, expires_at) SELECT ?, family_hash, client_id, resource, scope, ?, ? FROM oauth_refresh_tokens WHERE token_hash = ? AND client_id = ? AND resource = ? AND consumed_at = ? AND replacement_token_hash = ?",
-    )
-    .bind([
-      @core.any(replacement_token_hash),
-      @core.any(replacement_created_at),
-      @core.any(replacement_expires_at),
-      @core.any(old_token_hash),
-      @core.any(client_id),
-      @core.any(resource),
-      @core.any(now),
-      @core.any(replacement_token_hash),
-    ])
-  let insert_access = db
-    .prepare(
-      "INSERT INTO oauth_access_tokens (token_hash, client_id, resource, scope, created_at, expires_at) SELECT ?, client_id, resource, scope, ?, ? FROM oauth_refresh_tokens WHERE token_hash = ? AND client_id = ? AND resource = ? AND consumed_at = ? AND replacement_token_hash = ?",
-    )
-    .bind([
-      @core.any(access.token_hash),
-      @core.any(access.created_at),
-      @core.any(access.expires_at),
-      @core.any(old_token_hash),
-      @core.any(client_id),
-      @core.any(resource),
-      @core.any(now),
-      @core.any(replacement_token_hash),
-    ])
-  let results = db.batch([update, insert_refresh, insert_access])
-  if results.length() == 3 &&
-    changed_rows(results[0]) == 1 &&
-    changed_rows(results[1]) == 1 &&
-    changed_rows(results[2]) == 1 {
-    RefreshRotated
-  } else {
-    let row = db
-      .prepare(
-        "SELECT consumed_at FROM oauth_refresh_tokens WHERE token_hash = ? AND client_id = ? AND resource = ?",
-      )
-      .bind([
-        @core.any(old_token_hash),
-        @core.any(client_id),
-        @core.any(resource),
-      ])
-      .first()
-    match row {
-      Some(value) if !@core.is_null(value["consumed_at"]) => RefreshReplay
-      _ => RefreshInvalid
-    }
+) -> RefreshRotationDecision raise OAuthStorageError {
+  let result = rotate_refresh_token_with_access_js(
+    db.as_any(),
+    old_token_hash,
+    client_id,
+    resource,
+    replacement_token_hash,
+    replacement_created_at,
+    replacement_expires_at,
+    now,
+    access.token_hash,
+    access.created_at,
+    access.expires_at,
+  ).wait() catch {
+    _ => raise OAuthStorageError("d1_rotate_failed")
+  }
+  match result {
+    1 => RefreshRotated
+    2 => RefreshReplay
+    -1 => raise OAuthStorageError("d1_rotate_failed")
+    _ => RefreshInvalid
   }
 }
 
@@ -906,6 +990,28 @@ pub async fn revoke_refresh_family(
 }
 
 ///|
+/// Revoke the whole refresh-token family through native D1 for the Worker
+/// runtime. Returns false on a storage failure.
+extern "js" fn revoke_refresh_family_for_token_js(
+  db : @core.Any,
+  token_hash : String,
+  client_id : String,
+  resource : String,
+  now : Int,
+) -> @core.Promise[Bool] =
+  #| async (db, tokenHash, clientId, resource, now) => {
+  #|   try {
+  #|     const result = await db
+  #|       .prepare("UPDATE oauth_refresh_tokens SET revoked_at = ? WHERE family_hash = (SELECT family_hash FROM oauth_refresh_tokens WHERE token_hash = ? AND client_id = ? AND resource = ?) AND revoked_at IS NULL")
+  #|       .bind(now, tokenHash, clientId, resource)
+  #|       .run();
+  #|     return Boolean(result && result.success !== false);
+  #|   } catch (_) {
+  #|     return false;
+  #|   }
+  #| }
+
+///|
 /// Revoke the full refresh-token family after replay detection without
 /// exposing the family identifier to the endpoint layer.
 pub async fn revoke_refresh_family_for_token(
@@ -914,17 +1020,144 @@ pub async fn revoke_refresh_family_for_token(
   client_id : String,
   resource : String,
   now : Int,
-) -> Unit raise @cloudflare.D1Error {
-  db
-  .prepare(
-    "UPDATE oauth_refresh_tokens SET revoked_at = ? WHERE family_hash = (SELECT family_hash FROM oauth_refresh_tokens WHERE token_hash = ? AND client_id = ? AND resource = ?) AND revoked_at IS NULL",
-  )
-  .bind([
-    @core.any(now),
-    @core.any(token_hash),
-    @core.any(client_id),
-    @core.any(resource),
-  ])
-  .run()
-  |> ignore
+) -> Unit raise OAuthStorageError {
+  let ok = revoke_refresh_family_for_token_js(
+    db.as_any(),
+    token_hash,
+    client_id,
+    resource,
+    now,
+  ).wait() catch {
+    _ => raise OAuthStorageError("d1_revoke_failed")
+  }
+  if !ok {
+    raise OAuthStorageError("d1_revoke_failed")
+  }
+}
+
+///|
+/// A dynamically registered OAuth client (RFC 7591). `redirect_uris` is
+/// persisted as a JSON array string; `client_secret_hash` is a SHA-256 hex
+/// digest and never the presented secret itself.
+pub struct OAuthClientRecord {
+  client_id : String
+  client_name : String
+  redirect_uris : Array[String]
+  client_secret_hash : String?
+  scope : String
+  created_at : Int
+}
+
+///|
+/// The subset of a registered client row the protocol layer needs.
+/// `redirect_uris` stays the raw JSON array; parsing happens in MoonBit.
+pub(all) struct StoredOAuthClient {
+  client_name : String
+  redirect_uris : String
+  client_secret_hash : String?
+  scope : String
+}
+
+///|
+struct OAuthClientRow {
+  client_name : String
+  redirect_uris : String
+  client_secret_hash : String?
+  scope : String
+} derive(FromJson)
+
+///|
+extern "js" fn insert_oauth_client_js(
+  db : @core.Any,
+  client_id : String,
+  client_name : String,
+  redirect_uris_json : String,
+  has_secret : Bool,
+  client_secret_hash : String,
+  scope : String,
+  created_at : Int,
+) -> @core.Promise[Bool] =
+  #| async (db, clientId, clientName, redirectUrisJson, hasSecret, clientSecretHash, scope, createdAt) => {
+  #|   try {
+  #|     const result = await db
+  #|       .prepare("INSERT INTO oauth_clients (client_id, client_name, redirect_uris, client_secret_hash, scope, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+  #|       .bind(clientId, clientName, redirectUrisJson, hasSecret ? clientSecretHash : null, scope, createdAt)
+  #|       .run();
+  #|     return Boolean(result && result.success !== false);
+  #|   } catch (_) {
+  #|     return false;
+  #|   }
+  #| }
+
+///|
+pub async fn insert_oauth_client(
+  db : @cloudflare.D1Database,
+  record : OAuthClientRecord,
+) -> Bool {
+  let redirect_uris_json = ToJson::to_json(record.redirect_uris).stringify()
+  insert_oauth_client_js(
+    db.as_any(),
+    record.client_id,
+    record.client_name,
+    redirect_uris_json,
+    record.client_secret_hash is Some(_),
+    record.client_secret_hash.unwrap_or(""),
+    record.scope,
+    record.created_at,
+  ).wait() catch {
+    _ => false
+  }
+}
+
+///|
+extern "js" fn get_oauth_client_js(
+  db : @core.Any,
+  client_id : String,
+) -> @core.Promise[String?] =
+  #| async (db, clientId) => {
+  #|   try {
+  #|     const row = await db
+  #|       .prepare("SELECT client_name, redirect_uris, client_secret_hash, scope FROM oauth_clients WHERE client_id = ? AND revoked_at IS NULL")
+  #|       .bind(clientId)
+  #|       .first();
+  #|     if (!row) return undefined;
+  #|     return JSON.stringify({
+  #|       client_name: row.client_name,
+  #|       redirect_uris: row.redirect_uris,
+  #|       client_secret_hash: row.client_secret_hash ?? null,
+  #|       scope: row.scope,
+  #|     });
+  #|   } catch (_) {
+  #|     return undefined;
+  #|   }
+  #| }
+
+///|
+/// Look up a live registered client. Missing and revoked registrations are
+/// indistinguishable: both simply do not resolve to a client.
+pub async fn get_oauth_client(
+  db : @cloudflare.D1Database,
+  client_id : String,
+) -> StoredOAuthClient? {
+  if client_id.is_empty() {
+    return None
+  }
+  let raw = get_oauth_client_js(db.as_any(), client_id).wait() catch {
+    _ => None
+  }
+  match raw {
+    None => None
+    Some(value) => {
+      let json = @json.parse(value) catch { _ => return None }
+      let row : OAuthClientRow = @json.from_json(json) catch {
+        _ => return None
+      }
+      Some(StoredOAuthClient::{
+        client_name: row.client_name,
+        redirect_uris: row.redirect_uris,
+        client_secret_hash: row.client_secret_hash,
+        scope: row.scope,
+      })
+    }
+  }
 }

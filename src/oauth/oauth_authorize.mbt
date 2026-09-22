@@ -91,6 +91,30 @@ pub fn parse_client_metadata(
 }
 
 ///|
+/// Rebuild the same validated metadata shape for a dynamically registered
+/// (RFC 7591) client so the authorize pipeline treats both client kinds
+/// identically. Declared redirect URIs are re-validated here even though they
+/// were checked at registration.
+pub fn registered_client_metadata(
+  client_id : String,
+  client_name : String,
+  redirect_uris : Array[String],
+) -> ClientMetadata? {
+  if client_id.is_empty() || client_name.trim().to_owned().is_empty() {
+    return None
+  }
+  if redirect_uris.is_empty() {
+    return None
+  }
+  for uri in redirect_uris {
+    if !valid_redirect_uri(uri) {
+      return None
+    }
+  }
+  Some(ClientMetadata::{ client_id, client_name, redirect_uris, })
+}
+
+///|
 /// Whether the declared CIMD document permits this redirect target. The check
 /// is byte-for-byte; no normalization is performed.
 pub fn ClientMetadata::redirect_uri_allowed(

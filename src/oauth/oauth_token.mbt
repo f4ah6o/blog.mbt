@@ -21,6 +21,7 @@ pub struct OAuthTokenRequest {
   resource : String?
   code_verifier : String?
   refresh_token : String?
+  client_secret : String?
 }
 
 ///|
@@ -59,6 +60,11 @@ pub fn OAuthTokenRequest::refresh_token(self : OAuthTokenRequest) -> String? {
 }
 
 ///|
+pub fn OAuthTokenRequest::client_secret(self : OAuthTokenRequest) -> String? {
+  self.client_secret
+}
+
+///|
 pub(all) enum TokenGrant {
   AuthorizationCode
   RefreshToken
@@ -79,6 +85,7 @@ pub fn parse_oauth_token_form(body : String) -> OAuthTokenRequest? {
   let mut resource : String? = None
   let mut code_verifier : String? = None
   let mut refresh_token : String? = None
+  let mut client_secret : String? = None
   for pair in pairs {
     match pair.name {
       "grant_type" =>
@@ -123,6 +130,12 @@ pub fn parse_oauth_token_form(body : String) -> OAuthTokenRequest? {
         } else {
           refresh_token = Some(pair.value)
         }
+      "client_secret" =>
+        if client_secret is Some(_) {
+          return None
+        } else {
+          client_secret = Some(pair.value)
+        }
       _ => return None
     }
   }
@@ -134,6 +147,7 @@ pub fn parse_oauth_token_form(body : String) -> OAuthTokenRequest? {
     resource,
     code_verifier,
     refresh_token,
+    client_secret,
   })
 }
 
