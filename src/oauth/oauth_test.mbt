@@ -877,3 +877,16 @@ test "token form accepts an optional client_secret field" {
     true,
   )
 }
+
+///|
+// get_oauth_client_js serializes NULL client_secret_hash as an absent key,
+// because MoonBit's derived FromJson rejects explicit JSON null on Option
+// fields. The row contract is pinned here so the two sides cannot drift.
+test "oauth client row parses when secret key is absent" {
+  let json = @json.parse(
+    "{\"client_name\":\"Devin\",\"redirect_uris\":\"[\\\"https://api.devin.ai/cb\\\"]\",\"scope\":\"mcp:discover\"}",
+  )
+  let _row : @oauth.OAuthClientRow = @json.from_json(json) catch {
+    _ => fail("from_json rejected absent client_secret_hash")
+  }
+}
