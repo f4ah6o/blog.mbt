@@ -158,7 +158,6 @@ pub fn validate_oauth_token_request(request : OAuthTokenRequest) -> TokenGrant? 
       if !present_valid(request.code) ||
         !present_valid(request.client_id) ||
         !present_valid(request.redirect_uri) ||
-        !present_valid(request.resource) ||
         !present_valid(request.code_verifier) ||
         request.refresh_token is Some(_) {
         None
@@ -172,7 +171,6 @@ pub fn validate_oauth_token_request(request : OAuthTokenRequest) -> TokenGrant? 
     "refresh_token" =>
       if !present_valid(request.refresh_token) ||
         !present_valid(request.client_id) ||
-        !present_valid(request.resource) ||
         request.code is Some(_) ||
         request.redirect_uri is Some(_) ||
         request.code_verifier is Some(_) {
