@@ -5,6 +5,7 @@ import {
   "mizchi/cloudflare",
   "mizchi/js/core",
   "mizchi/js/web/http",
+  "moonbitlang/core/debug",
   "moonbitlang/core/json",
 }
 
@@ -50,10 +51,8 @@ pub struct AdminPost {
   status : PostStatus
   published_at : String?
   updated_at : String
-} derive(Show)
+} derive(@debug.Debug)
 pub fn AdminPost::new(Int, String, String, String, String, Bool, PostStatus, String?, String) -> Self
-
-type AuthOptionsResponse derive(Show, ToJson)
 
 pub enum AuthResult {
   Authenticated(String)
@@ -62,34 +61,13 @@ pub enum AuthResult {
   ConfigError(String)
 }
 
-type AuthVerifyRequest derive(Show, @json.FromJson)
-
-type AuthenticatorSelectionJS derive(Show)
-
-type CredentialDescriptorJS derive(Show, @json.FromJson)
-
-type JwtPayload derive(Show, ToJson, @json.FromJson)
+type JwtPayload derive(ToJson, @debug.Debug, @json.FromJson)
 
 pub enum PostStatus {
   Draft
   Published
-} derive(Eq, Show)
-
-type PubKeyCredParamJS derive(Show)
-
-type RegOptionsResponse derive(Show, ToJson)
-
-type RegVerifyRequest derive(Show, @json.FromJson)
-
-type RelyingPartyInfoJS derive(Show, ToJson)
-
-type StoredChallenge derive(Show, ToJson, @json.FromJson)
-
-type StoredCredential derive(Show, ToJson, @json.FromJson)
-
-type UserInfoJS derive(Show)
+} derive(Eq, @debug.Debug)
 
 // Type aliases
 
 // Traits
-

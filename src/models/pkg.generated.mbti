@@ -25,4 +25,3 @@ pub fn BlogPost::new(Int, String, String, String, String, Bool, String, String) 
 // Type aliases
 
 // Traits
-

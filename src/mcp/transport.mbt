@@ -23,6 +23,16 @@ fn mcp_http_result(status : Int, body : String) -> McpHttpResult {
 }
 
 ///|
+/// Dispatch outcome for one validated request. `Respond` is fully resolved in
+/// the protocol layer (discovery, catalog, errors). `ToolCall` is a validated
+/// `tools/call` handed to the async Worker bridge for scope authorization and
+/// D1 execution; `id` is the JSON-RPC id the response must echo.
+pub(all) enum McpDispatch {
+  Respond(McpHttpResult)
+  ToolCall(id~ : Json, call~ : McpToolCall)
+}
+
+///|
 /// Validate and dispatch one independent MCP 2026-07-28 POST body. The
 /// transport is intentionally stateless: no initialize handshake or session
 /// identifier participates in dispatch.
@@ -31,10 +41,10 @@ pub fn dispatch_mcp_http_request(
   headers : HttpHeaders,
   server_name : String,
   server_version : String,
-) -> McpHttpResult {
+) -> McpDispatch {
   let request = match validate_mcp_http_request(body, headers) {
     Ok(value) => value
-    Err(error) => return mcp_http_result(400, error.to_json_string())
+    Err(error) => return Respond(mcp_http_result(400, error.to_json_string()))
   }
   // The 2026-07-28 core defines no client-to-server notifications over
   // Streamable HTTP. Reject rather than silently accepting a method whose
@@ -44,18 +54,22 @@ pub fn dispatch_mcp_http_request(
       JSON_RPC_INVALID_REQUEST,
       "Invalid Request: client notifications are not supported over MCP 2026-07-28 Streamable HTTP",
     )
-    return mcp_http_result(
-      400,
-      JsonRpcErrorResponse::new(null, error).to_json_string(),
+    return Respond(
+      mcp_http_result(
+        400,
+        JsonRpcErrorResponse::new(null, error).to_json_string(),
+      ),
     )
   }
   if request.method_name() == "server/discover" {
-    return mcp_http_result(
-      200,
-      server_discover_response(
-        request.id_or_null(),
-        server_name,
-        server_version,
+    return Respond(
+      mcp_http_result(
+        200,
+        server_discover_response(
+          request.id_or_null(),
+          server_name,
+          server_version,
+        ),
       ),
     )
   }
@@ -67,18 +81,34 @@ pub fn dispatch_mcp_http_request(
         server_name,
         server_version,
       ) {
-      Ok(body) => return mcp_http_result(200, body)
+      Ok(body) => return Respond(mcp_http_result(200, body))
       Err(error) =>
-        return mcp_http_result(
-          400,
-          JsonRpcErrorResponse::new(request.id_or_null(), error).to_json_string(),
+        return Respond(
+          mcp_http_result(
+            400,
+            JsonRpcErrorResponse::new(request.id_or_null(), error).to_json_string(),
+          ),
+        )
+    }
+  }
+  if request.method_name() == "tools/call" {
+    return match request.tools_call_plan() {
+      Ok(call) => ToolCall(id=request.id_or_null(), call~)
+      Err(error) =>
+        Respond(
+          mcp_http_result(
+            400,
+            JsonRpcErrorResponse::new(request.id_or_null(), error).to_json_string(),
+          ),
         )
     }
   }
   let error = JsonRpcError::new(JSON_RPC_METHOD_NOT_FOUND, "Method not found")
-  mcp_http_result(
-    404,
-    JsonRpcErrorResponse::new(request.id_or_null(), error).to_json_string(),
+  Respond(
+    mcp_http_result(
+      404,
+      JsonRpcErrorResponse::new(request.id_or_null(), error).to_json_string(),
+    ),
   )
 }
 

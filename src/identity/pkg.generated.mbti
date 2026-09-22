@@ -1,0 +1,161 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "f4ah6o/blog.mbt/identity"
+
+import {
+  "mizchi/cloudflare",
+  "mizchi/js/core",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+}
+
+// Values
+pub async fn add_credential(@core.Any, String, StoredCredential) -> Unit
+
+pub async fn consume_challenge(@core.Any, String, String, String) -> StoredChallenge?
+
+pub async fn delete_challenge(@core.Any, String, String) -> Unit
+
+pub async fn find_credential_by_id(@core.Any, String, String) -> StoredCredential?
+
+pub async fn generate_auth_options(@core.Any, String, String) -> AuthOptionsResponse
+
+pub async fn generate_auth_options_with_timeout(@core.Any, String, String, Int) -> AuthOptionsResponse
+
+pub async fn generate_reg_options(@core.Any, String, String, String, String) -> RegOptionsResponse
+
+pub async fn get_challenge(@core.Any, String, String) -> StoredChallenge?
+
+pub async fn get_credentials(@core.Any, String) -> Array[StoredCredential]
+
+pub fn get_oauth_auth_kv(@cloudflare.CloudflareEnv) -> @core.Any?
+
+pub fn get_oauth_origin(@cloudflare.CloudflareEnv) -> String?
+
+pub fn get_oauth_rp_id(@cloudflare.CloudflareEnv) -> String?
+
+pub fn get_oauth_user_id(@cloudflare.CloudflareEnv) -> String?
+
+pub fn get_rp_id(@cloudflare.CloudflareEnv) -> String?
+
+pub fn get_rp_name(@cloudflare.CloudflareEnv) -> String?
+
+pub fn get_rp_origin(@cloudflare.CloudflareEnv) -> String?
+
+pub async fn save_challenge(@core.Any, String, String, String, String) -> Unit
+
+pub async fn save_credentials(@core.Any, String, Array[StoredCredential]) -> Unit
+
+pub fn should_use_secure_cookie(@cloudflare.CloudflareEnv) -> Bool
+
+pub async fn update_credential_counter(@core.Any, String, String, UInt) -> Unit
+
+pub async fn verify_authentication(@core.Any, String, String, String, AuthVerifyRequest) -> AuthVerifyResult
+
+pub async fn verify_authentication_with_challenge(@core.Any, String, String, String, AuthVerifyRequest, String) -> AuthVerifyResult
+
+pub async fn verify_registration(@core.Any, String, String, String, RegVerifyRequest) -> RegVerifyResult
+
+// Errors
+
+// Types and methods
+pub struct AuthOptionsResponse {
+  challenge : String
+  challenge_id : String
+  timeout : Int
+  rp_id : String
+  allow_credentials : Array[CredentialDescriptorJS]
+  user_verification : String
+} derive(ToJson, @debug.Debug)
+pub fn AuthOptionsResponse::challenge_identifier(Self) -> String
+pub fn AuthOptionsResponse::challenge_value(Self) -> String
+
+pub struct AuthVerifyRequest {
+  challenge_id : String
+  credential_id : String
+  raw_id : String
+  client_data_json : String
+  authenticator_data : String
+  signature : String
+} derive(@debug.Debug, @json.FromJson)
+pub fn AuthVerifyRequest::new(String, String, String, String, String, String) -> Self
+
+pub enum AuthVerifyResult {
+  Success(UInt)
+  ChallengeInvalid
+  CredentialNotFound
+  VerificationFailed(String)
+}
+
+pub struct AuthenticatorSelectionJS {
+  authenticator_attachment : String?
+  resident_key : String
+  user_verification : String
+} derive(@debug.Debug)
+
+pub struct CredentialDescriptorJS {
+  id : String
+  type_ : String
+  transports : Array[String]
+} derive(@debug.Debug, @json.FromJson)
+
+pub struct PubKeyCredParamJS {
+  type_ : String
+  alg : Int
+} derive(@debug.Debug)
+
+pub struct RegOptionsResponse {
+  challenge : String
+  challenge_id : String
+  timeout : Int
+  rp : RelyingPartyInfoJS
+  user : UserInfoJS
+  pub_key_cred_params : Array[PubKeyCredParamJS]
+  exclude_credentials : Array[CredentialDescriptorJS]
+  authenticator_selection : AuthenticatorSelectionJS
+  attestation : String
+} derive(ToJson, @debug.Debug)
+
+pub struct RegVerifyRequest {
+  challenge_id : String
+  credential_id : String
+  raw_id : String
+  client_data_json : String
+  attestation_object : String
+  credential_name : String?
+} derive(@debug.Debug, @json.FromJson)
+
+pub enum RegVerifyResult {
+  Success
+  ChallengeInvalid
+  VerificationFailed(String)
+}
+
+pub struct RelyingPartyInfoJS {
+  id : String
+  name : String
+} derive(ToJson, @debug.Debug)
+
+pub struct StoredChallenge {
+  challenge : String
+  challenge_type : String
+  expires_at : Int
+} derive(ToJson, @debug.Debug, @json.FromJson)
+
+pub struct StoredCredential {
+  id : String
+  public_key : String
+  counter : UInt
+  transports : Array[String]
+  name : String
+  created_at : String
+} derive(ToJson, @debug.Debug, @json.FromJson)
+
+pub struct UserInfoJS {
+  id : String
+  name : String
+  display_name : String
+} derive(@debug.Debug)
+
+// Type aliases
+
+// Traits

@@ -266,6 +266,64 @@ npx wrangler d1 execute blog-db --local --command \
            datetime('now'), datetime('now'));"
 ```
 
+## MCP サーバー
+
+このブログは MCP (Model Context Protocol) サーバーとして動作し、Devin や
+ChatGPT などの MCP クライアントから記事を管理できます。
+
+- エンドポイント: `POST https://blog.f12o.com/mcp`（Streamable HTTP、stateless）
+- プロトコル: MCP `2026-07-28`（initialize ハンドシェイクなし）
+- メソッド: `server/discover`、`tools/list`、`tools/call`
+
+### 必須ヘッダー
+
+各リクエストで、HTTP ヘッダーがボディと一致している必要があります。
+
+- `MCP-Protocol-Version: 2026-07-28`
+- `Mcp-Method`: JSON-RPC の `method` と同じ値
+- `Mcp-Name`: `tools/call` のみ必須。`params.name` と同じ値
+- `Accept`: `application/json` と `text/event-stream` の両方を含むこと
+- `Content-Type: application/json`
+- ボディの `params._meta["io.modelcontextprotocol/protocolVersion"]` も `2026-07-28`
+
+### 認証とスコープ
+
+`/mcp` は OAuth 2.1 の保護リソースです。RFC 9728 の protected-resource
+metadata と RFC 8414 の authorization-server metadata を公開し、
+PKCE (S256) + WebAuthn ベースの同意画面でトークンを発行します。
+
+- すべての `/mcp` リクエスト: `mcp:discover` スコープが必須
+- `tools/call` には加えてツールごとのスコープ:
+  - `list_posts` / `get_post` → `blog:read`
+  - `create_post` / `update_post` → `blog:write`
+  - `publish_post` → `blog:publish`
+  - （削除ツールはありません）
+- スコープ不足は HTTP 403 `insufficient_scope`、未認証は 401 +
+  `WWW-Authenticate` チャレンジ
+- `offline_access` で refresh token ローテーションも発行可能
+
+### ツール
+
+`list_posts`, `get_post`, `create_post`, `update_post`, `publish_post` の5つ。
+引数は JSON Schema 2020-12 で厳密に検証され、スキーマ違反は JSON-RPC
+`-32602` (HTTP 400)。実行時の失敗（記事が無い、バリデーション、DB エラー）は
+HTTP 200 の CallToolResult `isError: true` で返ります。
+
+### クライアントからの接続
+
+- **Devin (app.devin.ai)**: Organization Settings からカスタム MCP サーバー
+  として `https://blog.f12o.com/mcp` を追加。HTTP トランスポート・OAuth で
+  接続すると同意画面が開き、必要スコープを承認して利用します。
+- **ChatGPT (chatgpt.com)**: コネクタ（MCP 対応）として同じ URL を指定します。
+  OAuth フロー経由でトークンを取得後、`tools/call` が使えます。
+
+クライアント側の UI 名称や設定手順は各プロダクトのドキュメントを参照して
+ください。
+
+詳細なプロトコル仕様とエラー契約は
+[docs/mcp-protocol-architecture.md](docs/mcp-protocol-architecture.md) と
+[docs/oauth-mcp-architecture.md](docs/oauth-mcp-architecture.md) を参照。
+
 ## サイト設定
 
 ブログのタイトルやフッター文言は `config/blog.toml` で管理します。

@@ -21,4 +21,3 @@ pub const SITE_URL : String = "https://blog.f12o.com"
 // Type aliases
 
 // Traits
-

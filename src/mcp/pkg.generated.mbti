@@ -1,0 +1,179 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "f4ah6o/blog.mbt/mcp"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub const JSON_RPC_INTERNAL_ERROR : Int = -32603
+
+pub const JSON_RPC_INVALID_PARAMS : Int = -32602
+
+pub const JSON_RPC_INVALID_REQUEST : Int = -32600
+
+pub const JSON_RPC_METHOD_NOT_FOUND : Int = -32601
+
+pub const JSON_RPC_PARSE_ERROR : Int = -32700
+
+pub const JSON_RPC_VERSION : String = "2.0"
+
+pub const MCP_CLIENT_CAPABILITIES_META_KEY : String = "io.modelcontextprotocol/clientCapabilities"
+
+pub const MCP_CLIENT_INFO_META_KEY : String = "io.modelcontextprotocol/clientInfo"
+
+pub const MCP_DISCOVER_TTL_MS : Int = 3600000
+
+pub const MCP_HEADER_MISMATCH : Int = -32020
+
+pub const MCP_METHOD_HEADER : String = "Mcp-Method"
+
+pub const MCP_NAME_HEADER : String = "Mcp-Name"
+
+pub const MCP_PROTOCOL_VERSION : String = "2026-07-28"
+
+pub const MCP_PROTOCOL_VERSION_HEADER : String = "MCP-Protocol-Version"
+
+pub const MCP_PROTOCOL_VERSION_META_KEY : String = "io.modelcontextprotocol/protocolVersion"
+
+pub const MCP_SERVER_INFO_META_KEY : String = "io.modelcontextprotocol/serverInfo"
+
+pub const MCP_TOOLS_TTL_MS : Int = 3600000
+
+pub const MCP_UNSUPPORTED_PROTOCOL_VERSION : Int = -32022
+
+pub fn dispatch_mcp_http_request(String, HttpHeaders, String, String) -> McpDispatch
+
+pub fn json_rpc_error_response(Json, JsonRpcError) -> Json
+
+pub fn json_rpc_error_response_string(Json, JsonRpcError) -> String
+
+pub fn mcp_name_source(String) -> McpNameSource
+
+pub fn mcp_post_json(Int, String, String, String, String, Bool, String, String?, String) -> Json
+
+pub fn mcp_tool_names() -> Array[String]
+
+pub fn parse_json_rpc_request(String) -> Result[JsonRpcRequest, JsonRpcError]
+
+pub fn parse_mcp_request(String) -> Result[McpRequest, JsonRpcError]
+
+pub fn server_discover_response(Json, String, String) -> String
+
+pub fn tools_call_error(Json, String) -> String
+
+pub fn tools_call_result(Json, Json) -> String
+
+pub fn tools_list_response(Json, Json?, String, String) -> Result[String, JsonRpcError]
+
+pub fn valid_streamable_http_accept(String) -> Bool
+
+pub fn validate_mcp_http_request(String, HttpHeaders) -> Result[McpRequest, JsonRpcErrorResponse]
+
+pub fn validate_method_header(HttpHeaders, String) -> McpHeaderError?
+
+pub fn validate_name_header(HttpHeaders, String, String?) -> McpHeaderError?
+
+pub fn validate_protocol_version_header(HttpHeaders, String) -> McpHeaderError?
+
+// Errors
+
+// Types and methods
+pub struct HttpHeaders {
+  // private fields
+}
+pub fn HttpHeaders::empty() -> Self
+pub fn HttpHeaders::get(Self, String) -> String?
+pub fn HttpHeaders::new(Array[(String, String)]) -> Self
+
+pub struct JsonRpcError {
+  // private fields
+}
+pub fn JsonRpcError::code(Self) -> Int
+pub fn JsonRpcError::data(Self) -> Json?
+pub fn JsonRpcError::message(Self) -> String
+pub fn JsonRpcError::new(Int, String) -> Self
+pub fn JsonRpcError::to_json(Self) -> Json
+pub fn JsonRpcError::to_json_string(Self) -> String
+pub fn JsonRpcError::with_data(Int, String, Json) -> Self
+
+pub struct JsonRpcErrorResponse {
+  // private fields
+}
+pub fn JsonRpcErrorResponse::error(Self) -> JsonRpcError
+pub fn JsonRpcErrorResponse::id(Self) -> Json
+pub fn JsonRpcErrorResponse::new(Json, JsonRpcError) -> Self
+pub fn JsonRpcErrorResponse::to_json(Self) -> Json
+pub fn JsonRpcErrorResponse::to_json_string(Self) -> String
+
+pub(all) enum JsonRpcIdKind {
+  IdMissing
+  IdNull
+  IdString
+  IdNumber
+  IdInvalid
+} derive(Eq, @debug.Debug)
+
+pub struct JsonRpcRequest {
+  // private fields
+}
+pub fn JsonRpcRequest::id_json(Self) -> Json?
+pub fn JsonRpcRequest::id_kind(Self) -> JsonRpcIdKind
+pub fn JsonRpcRequest::id_or_null(Self) -> Json
+pub fn JsonRpcRequest::is_notification(Self) -> Bool
+pub fn JsonRpcRequest::method_name(Self) -> String
+pub fn JsonRpcRequest::params(Self) -> Json?
+
+pub(all) enum McpDispatch {
+  Respond(McpHttpResult)
+  ToolCall(id~ : Json, call~ : McpToolCall)
+}
+
+pub(all) enum McpHeaderError {
+  MissingHeader(String)
+  HeaderValueMismatch(String, String, String)
+  MissingBodyValue(String, String, McpNameSource)
+  UnexpectedHeader(String, String, String)
+} derive(Eq, @debug.Debug)
+pub fn McpHeaderError::to_json_rpc_error(Self) -> JsonRpcError
+
+pub struct McpHttpResult {
+  // private fields
+}
+pub fn McpHttpResult::body(Self) -> String
+pub fn McpHttpResult::status(Self) -> Int
+
+pub(all) enum McpNameSource {
+  NoName
+  ParamName
+  ParamUri
+} derive(Eq, @debug.Debug)
+
+pub struct McpRequest {
+  // private fields
+}
+pub fn McpRequest::body_target(Self) -> String?
+pub fn McpRequest::client_capabilities(Self) -> Json?
+pub fn McpRequest::client_info(Self) -> Json?
+pub fn McpRequest::id_json(Self) -> Json?
+pub fn McpRequest::id_or_null(Self) -> Json
+pub fn McpRequest::is_notification(Self) -> Bool
+pub fn McpRequest::meta(Self) -> Json
+pub fn McpRequest::method_name(Self) -> String
+pub fn McpRequest::params(Self) -> Json?
+pub fn McpRequest::protocol_version(Self) -> String
+pub fn McpRequest::tools_call_plan(Self) -> Result[McpToolCall, JsonRpcError]
+pub fn McpRequest::validate_headers(Self, HttpHeaders) -> McpHeaderError?
+
+pub(all) enum McpToolCall {
+  ListPosts(limit~ : Int, offset~ : Int)
+  GetPost(id~ : Int)
+  CreatePost(title~ : String, slug~ : String, excerpt~ : String, content~ : String, slide_flag~ : Bool)
+  UpdatePost(id~ : Int, title~ : String, slug~ : String, excerpt~ : String, content~ : String, slide_flag~ : Bool)
+  PublishPost(id~ : Int)
+}
+pub fn McpToolCall::tool_name(Self) -> String
+
+// Type aliases
+
+// Traits

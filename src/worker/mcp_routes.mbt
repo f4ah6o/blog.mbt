@@ -118,14 +118,213 @@ pub async fn handle_mcp_request(
   if mcp_utf8_length(body) > MCP_MAX_BODY_BYTES {
     return Some(mcp_empty_response_js(413, "", false))
   }
-  let result = @mcp.dispatch_mcp_http_request(
-    body,
-    mcp_protocol_headers(req),
-    MCP_SERVER_NAME,
-    MCP_SERVER_VERSION,
-  )
-  Some(mcp_json_response_js(result.body(), result.status()))
+  match
+    @mcp.dispatch_mcp_http_request(
+      body,
+      mcp_protocol_headers(req),
+      MCP_SERVER_NAME,
+      MCP_SERVER_VERSION,
+    ) {
+    @mcp.McpDispatch::Respond(result) =>
+      Some(mcp_json_response_js(result.body(), result.status()))
+    @mcp.McpDispatch::ToolCall(id~, call~) => {
+      // tools/call additionally requires the operation's scope on top of the
+      // endpoint-wide mcp:discover check above.
+      let tool_auth = @oauth.authorize_protected_resource(
+        db,
+        @config.SITE_URL,
+        authorization,
+        mcp_tool_required_scope(call),
+        mcp_now(),
+      ) catch {
+        _ => @oauth.ProtectedResourceAuthorization::ServerError
+      }
+      let tool_status = mcp_auth_status(tool_auth)
+      if tool_status != 200 {
+        let challenge = match
+          @oauth.protected_resource_challenge(
+            @config.SITE_URL,
+            mcp_tool_required_scope(call),
+            mcp_auth_challenge_error(tool_auth),
+          ) {
+          Some(value) if tool_status == 401 || tool_status == 403 => value
+          _ => ""
+        }
+        return Some(mcp_empty_response_js(tool_status, challenge, false))
+      }
+      let result_body = execute_mcp_tool(db, call, id) catch {
+        _ => @mcp.tools_call_error(id, "Tool execution failed.")
+      }
+      Some(mcp_json_response_js(result_body, 200))
+    }
+  }
 }
+
+///|
+/// Map a validated tool call to the OAuth scope its D1 operation requires.
+fn mcp_tool_required_scope(call : @mcp.McpToolCall) -> String {
+  match call {
+    @mcp.McpToolCall::ListPosts(..) | @mcp.McpToolCall::GetPost(..) =>
+      @oauth.SCOPE_READ
+    @mcp.McpToolCall::CreatePost(..) | @mcp.McpToolCall::UpdatePost(..) =>
+      @oauth.SCOPE_WRITE
+    @mcp.McpToolCall::PublishPost(..) => @oauth.SCOPE_PUBLISH
+  }
+}
+
+///|
+fn admin_post_json(post : @admin.AdminPost) -> Json {
+  @mcp.mcp_post_json(
+    post.id,
+    post.title,
+    post.slug,
+    post.excerpt,
+    post.content,
+    post.slide_flag,
+    @admin.post_status_to_string(post.status),
+    post.published_at,
+    post.updated_at,
+  )
+}
+
+///|
+/// Mirror the admin form contract: title and slug are required, and slide
+/// posts must carry valid slide markdown. Returns the error to surface.
+fn validate_mcp_post_input(
+  title : String,
+  slug : String,
+  content : String,
+  slide_flag : Bool,
+) -> String? {
+  if title.trim().is_empty() {
+    return Some("Title is required.")
+  }
+  if slug.trim().is_empty() {
+    return Some("Slug is required.")
+  }
+  if slide_flag {
+    match @lib.validate_slide_markdown(content) {
+      Some(message) => return Some(message)
+      None => ()
+    }
+  }
+  None
+}
+
+///|
+/// Re-read a post after a mutation so the tool result always reflects the
+/// persisted row.
+async fn mcp_post_result(db : @core.Any, id : Int, rpc_id : Json) -> String {
+  let post_opt = @admin.get_post_by_id(db, id) catch {
+    _ => return @mcp.tools_call_error(rpc_id, "Failed to load post.")
+  }
+  match post_opt {
+    Some(post) =>
+      @mcp.tools_call_result(rpc_id, ({ "post": admin_post_json(post) } : Json))
+    None => @mcp.tools_call_error(rpc_id, "Post not found.")
+  }
+}
+
+///|
+/// Execute one validated tool call against D1. Execution failures surface as
+/// `isError` tool results, never as JSON-RPC errors.
+async fn execute_mcp_tool(
+  db : @cloudflare.D1Database,
+  call : @mcp.McpToolCall,
+  rpc_id : Json,
+) -> String {
+  let db_any : @core.Any = @core.identity(db)
+  match call {
+    @mcp.McpToolCall::ListPosts(limit~, offset~) => {
+      let posts = @admin.list_posts(db_any, limit, offset) catch {
+        _ => return @mcp.tools_call_error(rpc_id, "Failed to list posts.")
+      }
+      let items : Array[Json] = []
+      for post in posts {
+        items.push(admin_post_json(post))
+      }
+      @mcp.tools_call_result(rpc_id, ({ "posts": items } : Json))
+    }
+    @mcp.McpToolCall::GetPost(id=post_id) =>
+      mcp_post_result(db_any, post_id, rpc_id)
+    @mcp.McpToolCall::CreatePost(title~, slug~, excerpt~, content~, slide_flag~) => {
+      match validate_mcp_post_input(title, slug, content, slide_flag) {
+        Some(message) => return @mcp.tools_call_error(rpc_id, message)
+        None => ()
+      }
+      let new_id = @admin.insert_post(
+        db_any,
+        title,
+        slug,
+        excerpt,
+        content,
+        slide_flag,
+        mcp_now_iso(),
+      ) catch {
+        _ => return @mcp.tools_call_error(rpc_id, "Failed to create post.")
+      }
+      if new_id == 0 {
+        return @mcp.tools_call_error(rpc_id, "Failed to create post.")
+      }
+      mcp_post_result(db_any, new_id, rpc_id)
+    }
+    @mcp.McpToolCall::UpdatePost(
+      id=post_id,
+      title~,
+      slug~,
+      excerpt~,
+      content~,
+      slide_flag~
+    ) => {
+      match validate_mcp_post_input(title, slug, content, slide_flag) {
+        Some(message) => return @mcp.tools_call_error(rpc_id, message)
+        None => ()
+      }
+      let existing = @admin.get_post_by_id(db_any, post_id) catch {
+        _ => return @mcp.tools_call_error(rpc_id, "Failed to load post.")
+      }
+      if existing is None {
+        return @mcp.tools_call_error(rpc_id, "Post not found.")
+      }
+      @admin.update_post(
+        db_any,
+        post_id,
+        title,
+        slug,
+        excerpt,
+        content,
+        slide_flag,
+        mcp_now_iso(),
+      ) catch {
+        _ => return @mcp.tools_call_error(rpc_id, "Failed to update post.")
+      }
+      mcp_post_result(db_any, post_id, rpc_id)
+    }
+    @mcp.McpToolCall::PublishPost(id=post_id) => {
+      let existing = @admin.get_post_by_id(db_any, post_id) catch {
+        _ => return @mcp.tools_call_error(rpc_id, "Failed to load post.")
+      }
+      if existing is None {
+        return @mcp.tools_call_error(rpc_id, "Post not found.")
+      }
+      let now = mcp_now_iso()
+      @admin.set_status(
+        db_any,
+        post_id,
+        @admin.post_status_from_string("published"),
+        Some(now),
+        now,
+      ) catch {
+        _ => return @mcp.tools_call_error(rpc_id, "Failed to publish post.")
+      }
+      mcp_post_result(db_any, post_id, rpc_id)
+    }
+  }
+}
+
+///|
+extern "js" fn mcp_now_iso() -> String =
+  #| () => new Date().toISOString()
 
 ///|
 extern "js" fn mcp_request_header(
