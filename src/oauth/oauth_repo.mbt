@@ -1121,12 +1121,15 @@ extern "js" fn get_oauth_client_js(
   #|       .bind(clientId)
   #|       .first();
   #|     if (!row) return undefined;
-  #|     return JSON.stringify({
+  #|     const out = {
   #|       client_name: row.client_name,
   #|       redirect_uris: row.redirect_uris,
-  #|       client_secret_hash: row.client_secret_hash ?? null,
   #|       scope: row.scope,
-  #|     });
+  #|     };
+  #|     // MoonBit's derived FromJson rejects explicit JSON null for Option
+  #|     // fields; omit the key entirely for public clients.
+  #|     if (row.client_secret_hash != null) out.client_secret_hash = row.client_secret_hash;
+  #|     return JSON.stringify(out);
   #|   } catch (_) {
   #|     return undefined;
   #|   }
