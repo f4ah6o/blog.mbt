@@ -20,6 +20,20 @@ fn oauth_expected_resource() -> String? {
 }
 
 ///|
+/// RFC 8707 lets clients omit the resource parameter; the only resource this
+/// server ever binds is the canonical one, so an absent or empty value means
+/// that. A present value still has to match during grant validation.
+fn effective_resource(
+  request : @oauth.OAuthTokenRequest,
+  expected_resource : String,
+) -> String {
+  match request.resource() {
+    Some(value) if value != "" => value
+    _ => expected_resource
+  }
+}
+
+///|
 fn oauth_error_response(
   url : @core.Any,
   client : @oauth.ClientMetadata?,
@@ -118,7 +132,7 @@ async fn handle_oauth_authorize(
       get_search_param(url, "response_type").unwrap_or(""),
       client_id,
       get_search_param(url, "redirect_uri").unwrap_or(""),
-      get_search_param(url, "resource").unwrap_or(""),
+      get_search_param(url, "resource").unwrap_or(expected_resource),
       scope_param,
       get_search_param(url, "code_challenge").unwrap_or(""),
       get_search_param(url, "code_challenge_method").unwrap_or(""),
@@ -334,6 +348,10 @@ async fn handle_oauth_token(
   }
   let db : @cloudflare.D1Database = @core.identity(db_value)
   let now = oauth_now()
+  let expected_resource = match oauth_expected_resource() {
+    Some(value) => value
+    None => return oauth_token_error("server_error", 500)
+  }
   // Confidential clients registered through RFC 7591 must present their
   // issued secret; unregistered (CIMD) and public clients skip this check.
   let token_client_id = request.client_id().unwrap_or("")
@@ -353,7 +371,7 @@ async fn handle_oauth_token(
       let code = request.code().unwrap()
       let client_id = request.client_id().unwrap()
       let redirect_uri = request.redirect_uri().unwrap()
-      let resource = request.resource().unwrap()
+      let resource = effective_resource(request, expected_resource)
       let verifier = request.code_verifier().unwrap()
       if !@oauth.validate_opaque_secret(code) {
         return oauth_token_error("invalid_grant", 400)
@@ -430,7 +448,7 @@ async fn handle_oauth_token(
     @oauth.TokenGrant::RefreshToken => {
       let old_token = request.refresh_token().unwrap()
       let client_id = request.client_id().unwrap()
-      let resource = request.resource().unwrap()
+      let resource = effective_resource(request, expected_resource)
       if !@oauth.validate_opaque_secret(old_token) {
         return oauth_token_error("invalid_grant", 400)
       }
