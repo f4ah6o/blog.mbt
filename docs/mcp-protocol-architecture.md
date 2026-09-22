@@ -17,7 +17,9 @@ not involved; the existing `src/worker-entry.ts` glue is unchanged.
   request to the required per-request `_meta`, plus the combined validation
   pipeline.
 - `discover.mbt` - the minimal current `server/discover` result.
-- `tools.mbt` - the deterministic future blog-operation `tools/list` catalog.
+- `tools.mbt` - the deterministic blog-operation `tools/list` catalog.
+- `call.mbt` - `tools/call` argument parsing/validation into a `McpToolCall`
+  plan plus CallToolResult shaping. Execution stays in the Worker bridge.
 - `transport.mbt` - stateless request dispatch and HTTP status/body contract.
 
 ## Invariants
@@ -62,12 +64,25 @@ same `mcp:discover` OAuth policy as `server/discover`; no new scope is added and
 `list_posts`, `get_post`, `create_post`, `update_post`, `publish_post`. There is
 no delete operation.
 
-The catalog describes future operations only. `tools/call` and all database
-queries/mutations remain unimplemented, so `server/discover` deliberately does
-not advertise a `tools` capability. Future execution authorization remains
-separate: list/get would use `blog:read`, create/update `blog:write`, and
-publish `blog:publish`; these scopes are not encoded as nonstandard Tool
-fields.
+`tools/call` executes the catalog operations against D1. Each call passes the
+same envelope validation as every request and then resolves to a typed
+`McpToolCall` plan before any database access: `params.name` must match a
+catalog tool and `params.arguments` must satisfy that tool's schema exactly
+(`additionalProperties: false`, required fields present, integer bounds like
+`id >= 1` and `limit` in 1..100). Any violation is JSON-RPC `-32602` with HTTP
+400; there is no silent defaulting of wrong types or unknown tools. The
+`Mcp-Name` header/body agreement remains enforced upstream.
+
+Execution authorization is per tool: list/get require `blog:read`, create/update
+`blog:write`, and publish `blog:publish`, enforced at the HTTP
+protected-resource boundary after the request has resolved to a `McpToolCall`
+(the `mcp:discover` gate still applies to every `/mcp` request first). These
+scopes are not encoded as nonstandard Tool fields. Execution failures — post
+not found, business validation (title/slug non-empty, slide markdown rules),
+or storage errors — are returned as HTTP 200 CallToolResult payloads with
+`isError: true`; they are never JSON-RPC errors. Successful results carry
+`structuredContent` mirrored by a text content block, and mutations re-read the
+post so the result reflects the persisted row. There is no delete operation.
 
 The five Tool entries use narrow JSON Schema 2020-12 object schemas with
 `additionalProperties: false`. `list_posts` uses optional `limit` and `offset`;
@@ -97,11 +112,9 @@ metadata rather than article content. Future tool methods can add their own
 operation scopes without making discovery imply content access.
 
 The discovery result advertises only what is implemented: protocol version
-`2026-07-28`, an empty capabilities object, server identity in
-`result._meta["io.modelcontextprotocol/serverInfo"]`, and cache hints. Tool
-capabilities are not advertised because execution (`tools/call`) does not yet
-exist, even though the read-only catalog is now available. This prevents a
-client from treating the transitional catalog as callable functionality.
+`2026-07-28`, a `tools` capability with `listChanged: false` (the catalog is
+deterministic and never changes at runtime), server identity in
+`result._meta["io.modelcontextprotocol/serverInfo"]`, and cache hints.
 
 ## HTTP response contract
 
@@ -120,11 +133,16 @@ JSON-RPC errors, and no bearer value or Authorization header is logged.
 
 After authentication, malformed JSON / invalid JSON-RPC / unsupported protocol
 version / header-body validation failures return HTTP 400 with a JSON-RPC error
-body. `HeaderMismatch` remains `-32020`. An implemented protocol request for an
+body. `HeaderMismatch` remains `-32020`. `tools/call` bodies whose `params.name`
+or `params.arguments` violate the catalog schema also return HTTP 400 with
+`-32602`. A `tools/call` that reaches execution returns HTTP 200: success is a
+CallToolResult, and execution failures are a CallToolResult with
+`isError: true`. An implemented protocol request for an
 unknown RPC returns HTTP 404 with JSON-RPC `-32601 Method not found`.
-`server/discover` returns HTTP 200 with `application/json`. Client-to-server
-notifications are not part of the 2026-07-28 core Streamable HTTP surface, so
-this slice rejects them with HTTP 400 rather than silently accepting them.
+`server/discover` and `tools/list` return HTTP 200 with `application/json`.
+Client-to-server notifications are not part of the 2026-07-28 core Streamable
+HTTP surface, so this slice rejects them with HTTP 400 rather than silently
+accepting them.
 
 HTTP-shape failures are kept outside JSON-RPC: non-POST is 405, unsupported
 content type is 415, an invalid modern `Accept` contract is 406, and an

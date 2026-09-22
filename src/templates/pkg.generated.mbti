@@ -9,11 +9,11 @@ import {
 }
 
 // Values
-pub fn error_layout(String, String) -> String raise
+pub fn error_layout(String, String) -> String
 
-pub fn layout(String, @tmpx.Node) -> String raise
+pub fn layout(String, @tmpx.Node) -> String
 
-pub fn layout_with_meta(String, @tmpx.Node, PageMeta) -> String raise
+pub fn layout_with_meta(String, @tmpx.Node, PageMeta) -> String
 
 pub fn post_detail_content(@models.BlogPost) -> @tmpx.Node
 
@@ -38,4 +38,3 @@ pub(all) struct PageMeta {
 // Type aliases
 
 // Traits
-

@@ -15,6 +15,24 @@ fn expect_mcp_request(body : String) -> McpRequest {
 }
 
 ///|
+/// Unwrap an immediately-resolved dispatch; panics on a tool call plan.
+fn expect_respond(dispatch : McpDispatch) -> McpHttpResult {
+  match dispatch {
+    Respond(result) => result
+    ToolCall(..) => panic()
+  }
+}
+
+///|
+/// Unwrap a validated tool call plan; panics on an immediate response.
+fn expect_tool_call(dispatch : McpDispatch) -> (Json, McpToolCall) {
+  match dispatch {
+    ToolCall(id~, call~) => (id, call)
+    Respond(_) => panic()
+  }
+}
+
+///|
 test "json-rpc request preserves numeric and string ids" {
   let numeric = expect_request(
     (
@@ -293,8 +311,8 @@ test "server discovery dispatch returns current minimal response" {
     (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
     (MCP_METHOD_HEADER, "server/discover"),
   ])
-  let response = dispatch_mcp_http_request(
-    body, headers, "f4ah6o/blog.mbt", "0.1.0",
+  let response = expect_respond(
+    dispatch_mcp_http_request(body, headers, "f4ah6o/blog.mbt", "0.1.0"),
   )
   assert_eq(response.status(), 200)
   let text = response.body()
@@ -302,10 +320,13 @@ test "server discovery dispatch returns current minimal response" {
   assert_true(text.contains("supportedVersions"[:]))
   assert_true(text.contains("2026-07-28"[:]))
   assert_true(text.contains("io.modelcontextprotocol/serverInfo"[:]))
-  assert_true(text.contains("\"capabilities\":{}"[:]))
-  assert_true(text.contains("server/discover and tools/list are available"[:]))
   assert_true(
-    text.contains("tools/call and database operations are not implemented"[:]),
+    text.contains("\"capabilities\":{\"tools\":{\"listChanged\":false}}"[:]),
+  )
+  assert_true(
+    text.contains(
+      "server/discover, tools/list, and tools/call are available"[:],
+    ),
   )
   assert_true(text.contains("\"resultType\":\"complete\""[:]))
   assert_true(text.contains("\"cacheScope\":\"public\""[:]))
@@ -320,7 +341,9 @@ test "tools list returns the stable future-operation catalog" {
     (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
     (MCP_METHOD_HEADER, "tools/list"),
   ])
-  let response = dispatch_mcp_http_request(body, headers, "server", "1")
+  let response = expect_respond(
+    dispatch_mcp_http_request(body, headers, "server", "1"),
+  )
   assert_eq(response.status(), 200)
   let text = response.body()
   assert_true(text.contains("\"resultType\":\"complete\""[:]))
@@ -363,7 +386,9 @@ test "tools list rejects an unissued cursor as invalid params" {
     (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
     (MCP_METHOD_HEADER, "tools/list"),
   ])
-  let response = dispatch_mcp_http_request(body, headers, "server", "1")
+  let response = expect_respond(
+    dispatch_mcp_http_request(body, headers, "server", "1"),
+  )
   assert_eq(response.status(), 400)
   assert_true(response.body().contains("-32602"[:]))
   assert_true(response.body().contains("cursor-1"[:]))
@@ -373,26 +398,30 @@ test "tools list rejects an unissued cursor as invalid params" {
 test "tools list rejects unexpected Mcp-Name and method mismatch" {
   let body =
     #|{"jsonrpc":"2.0","id":10,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}
-  let unexpected_name = dispatch_mcp_http_request(
-    body,
-    HttpHeaders::new([
-      (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
-      (MCP_METHOD_HEADER, "tools/list"),
-      (MCP_NAME_HEADER, "list_posts"),
-    ]),
-    "server",
-    "1",
+  let unexpected_name = expect_respond(
+    dispatch_mcp_http_request(
+      body,
+      HttpHeaders::new([
+        (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
+        (MCP_METHOD_HEADER, "tools/list"),
+        (MCP_NAME_HEADER, "list_posts"),
+      ]),
+      "server",
+      "1",
+    ),
   )
   assert_eq(unexpected_name.status(), 400)
   assert_true(unexpected_name.body().contains("-32020"[:]))
-  let method_mismatch = dispatch_mcp_http_request(
-    body,
-    HttpHeaders::new([
-      (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
-      (MCP_METHOD_HEADER, "server/discover"),
-    ]),
-    "server",
-    "1",
+  let method_mismatch = expect_respond(
+    dispatch_mcp_http_request(
+      body,
+      HttpHeaders::new([
+        (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
+        (MCP_METHOD_HEADER, "server/discover"),
+      ]),
+      "server",
+      "1",
+    ),
   )
   assert_eq(method_mismatch.status(), 400)
   assert_true(method_mismatch.body().contains("-32020"[:]))
@@ -406,7 +435,9 @@ test "unknown method remains HTTP 404 and JSON-RPC -32601" {
     (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
     (MCP_METHOD_HEADER, "tools/unknown"),
   ])
-  let response = dispatch_mcp_http_request(body, headers, "server", "1")
+  let response = expect_respond(
+    dispatch_mcp_http_request(body, headers, "server", "1"),
+  )
   assert_eq(response.status(), 404)
   assert_true(response.body().contains("-32601"[:]))
 }
@@ -415,38 +446,44 @@ test "unknown method remains HTTP 404 and JSON-RPC -32601" {
 test "dispatch preserves header and protocol error status contracts" {
   let body =
     #|{"jsonrpc":"2.0","id":"header-1","method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}
-  let missing_protocol = dispatch_mcp_http_request(
-    body,
-    HttpHeaders::new([(MCP_METHOD_HEADER, "server/discover")]),
-    "server",
-    "1",
+  let missing_protocol = expect_respond(
+    dispatch_mcp_http_request(
+      body,
+      HttpHeaders::new([(MCP_METHOD_HEADER, "server/discover")]),
+      "server",
+      "1",
+    ),
   )
   assert_eq(missing_protocol.status(), 400)
   assert_true(missing_protocol.body().contains("-32020"[:]))
   assert_true(missing_protocol.body().contains("header-1"[:]))
 
-  let method_mismatch = dispatch_mcp_http_request(
-    body,
-    HttpHeaders::new([
-      (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
-      (MCP_METHOD_HEADER, "tools/list"),
-    ]),
-    "server",
-    "1",
+  let method_mismatch = expect_respond(
+    dispatch_mcp_http_request(
+      body,
+      HttpHeaders::new([
+        (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
+        (MCP_METHOD_HEADER, "tools/list"),
+      ]),
+      "server",
+      "1",
+    ),
   )
   assert_eq(method_mismatch.status(), 400)
   assert_true(method_mismatch.body().contains("-32020"[:]))
 
   let stale_body =
     #|{"jsonrpc":"2.0","id":"version-1","method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2025-11-25"}}}
-  let unsupported_protocol = dispatch_mcp_http_request(
-    stale_body,
-    HttpHeaders::new([
-      (MCP_PROTOCOL_VERSION_HEADER, "2025-11-25"),
-      (MCP_METHOD_HEADER, "server/discover"),
-    ]),
-    "server",
-    "1",
+  let unsupported_protocol = expect_respond(
+    dispatch_mcp_http_request(
+      stale_body,
+      HttpHeaders::new([
+        (MCP_PROTOCOL_VERSION_HEADER, "2025-11-25"),
+        (MCP_METHOD_HEADER, "server/discover"),
+      ]),
+      "server",
+      "1",
+    ),
   )
   assert_eq(unsupported_protocol.status(), 400)
   assert_true(unsupported_protocol.body().contains("-32022"[:]))
@@ -455,21 +492,15 @@ test "dispatch preserves header and protocol error status contracts" {
 
 ///|
 test "malformed and invalid requests remain HTTP 400 with JSON-RPC errors" {
-  let malformed = dispatch_mcp_http_request(
-    "{",
-    HttpHeaders::empty(),
-    "server",
-    "1",
+  let malformed = expect_respond(
+    dispatch_mcp_http_request("{", HttpHeaders::empty(), "server", "1"),
   )
   assert_eq(malformed.status(), 400)
   assert_true(malformed.body().contains("-32700"[:]))
   let invalid_body =
     #|{"jsonrpc":"1.0","id":1,"method":"server/discover","params":{}}
-  let invalid = dispatch_mcp_http_request(
-    invalid_body,
-    HttpHeaders::empty(),
-    "server",
-    "1",
+  let invalid = expect_respond(
+    dispatch_mcp_http_request(invalid_body, HttpHeaders::empty(), "server", "1"),
   )
   assert_eq(invalid.status(), 400)
   assert_true(invalid.body().contains("-32600"[:]))
@@ -483,7 +514,9 @@ test "client notification is rejected over modern Streamable HTTP" {
     (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
     (MCP_METHOD_HEADER, "server/discover"),
   ])
-  let response = dispatch_mcp_http_request(body, headers, "server", "1")
+  let response = expect_respond(
+    dispatch_mcp_http_request(body, headers, "server", "1"),
+  )
   assert_eq(response.status(), 400)
   assert_true(response.body().contains("-32600"[:]))
 }
@@ -560,4 +593,200 @@ test "full pipeline accepts a well-formed stateless request" {
       }
     }
   }
+}
+
+///|
+fn tools_call_headers(name : String) -> HttpHeaders {
+  HttpHeaders::new([
+    (MCP_PROTOCOL_VERSION_HEADER, MCP_PROTOCOL_VERSION),
+    (MCP_METHOD_HEADER, "tools/call"),
+    (MCP_NAME_HEADER, name),
+  ])
+}
+
+///|
+fn tools_call_body(name : String, arguments : String) -> String {
+  "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"" +
+  name +
+  "\",\"arguments\":" +
+  arguments +
+  ",\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\"}}}"
+}
+
+///|
+test "tools call dispatch validates every catalog tool" {
+  let (list_id, list_call) = expect_tool_call(
+    dispatch_mcp_http_request(
+      tools_call_body("list_posts", "{\"limit\":5,\"offset\":10}"),
+      tools_call_headers("list_posts"),
+      "server",
+      "1",
+    ),
+  )
+  match list_call {
+    ListPosts(limit~, offset~) => {
+      assert_eq(limit, 5)
+      assert_eq(offset, 10)
+    }
+    _ => panic()
+  }
+  match list_id {
+    Number(value, ..) => assert_eq(value, 3.0)
+    _ => panic()
+  }
+  let (_, get_call) = expect_tool_call(
+    dispatch_mcp_http_request(
+      tools_call_body("get_post", "{\"id\":7}"),
+      tools_call_headers("get_post"),
+      "server",
+      "1",
+    ),
+  )
+  match get_call {
+    GetPost(id~) => assert_eq(id, 7)
+    _ => panic()
+  }
+  let (_, create_call) = expect_tool_call(
+    dispatch_mcp_http_request(
+      tools_call_body(
+        "create_post", "{\"title\":\"T\",\"slug\":\"s\",\"content\":\"c\"}",
+      ),
+      tools_call_headers("create_post"),
+      "server",
+      "1",
+    ),
+  )
+  match create_call {
+    CreatePost(title~, slug~, excerpt~, content~, slide_flag~) => {
+      assert_eq(title, "T")
+      assert_eq(slug, "s")
+      assert_eq(content, "c")
+      assert_eq(excerpt, "")
+      assert_eq(slide_flag, false)
+    }
+    _ => panic()
+  }
+  let (_, update_call) = expect_tool_call(
+    dispatch_mcp_http_request(
+      tools_call_body(
+        "update_post", "{\"id\":2,\"title\":\"T\",\"slug\":\"s\",\"excerpt\":\"e\",\"content\":\"c\",\"slide_flag\":true}",
+      ),
+      tools_call_headers("update_post"),
+      "server",
+      "1",
+    ),
+  )
+  match update_call {
+    UpdatePost(id~, slide_flag~, ..) => {
+      assert_eq(id, 2)
+      assert_eq(slide_flag, true)
+    }
+    _ => panic()
+  }
+  let (_, publish_call) = expect_tool_call(
+    dispatch_mcp_http_request(
+      tools_call_body("publish_post", "{\"id\":9}"),
+      tools_call_headers("publish_post"),
+      "server",
+      "1",
+    ),
+  )
+  match publish_call {
+    PublishPost(id~) => assert_eq(id, 9)
+    _ => panic()
+  }
+}
+
+///|
+test "tools call defaults optional arguments" {
+  let (_, call) = expect_tool_call(
+    dispatch_mcp_http_request(
+      tools_call_body("list_posts", "{}"),
+      tools_call_headers("list_posts"),
+      "server",
+      "1",
+    ),
+  )
+  match call {
+    ListPosts(limit~, offset~) => {
+      assert_eq(limit, 20)
+      assert_eq(offset, 0)
+    }
+    _ => panic()
+  }
+}
+
+///|
+test "tools call rejects unknown and malformed arguments" {
+  let cases = [
+    ("list_posts", "{\"limit\":0}"),
+    ("list_posts", "{\"limit\":101}"),
+    ("list_posts", "{\"offset\":-1}"),
+    ("list_posts", "{\"limit\":1.5}"),
+    ("get_post", "{\"id\":0}"),
+    ("get_post", "{\"id\":\"7\"}"),
+    ("get_post", "{}"),
+    ("create_post", "{\"title\":\"T\",\"slug\":\"s\"}"),
+    (
+      "create_post", "{\"title\":\"T\",\"slug\":\"s\",\"content\":\"c\",\"extra\":1}",
+    ),
+    (
+      "update_post", "{\"id\":1,\"title\":\"T\",\"slug\":\"s\",\"excerpt\":\"e\",\"content\":\"c\",\"slide_flag\":\"yes\"}",
+    ),
+    ("delete_post", "{\"id\":1}"),
+  ]
+  for pair in cases {
+    let (name, arguments) = pair
+    let response = expect_respond(
+      dispatch_mcp_http_request(
+        tools_call_body(name, arguments),
+        tools_call_headers(name),
+        "server",
+        "1",
+      ),
+    )
+    assert_eq(response.status(), 400)
+    assert_true(response.body().contains("-32602"[:]))
+  }
+}
+
+///|
+test "tools call rejects non-object arguments and missing name" {
+  let bad_arguments = expect_respond(
+    dispatch_mcp_http_request(
+      tools_call_body("list_posts", "[]"),
+      tools_call_headers("list_posts"),
+      "server",
+      "1",
+    ),
+  )
+  assert_eq(bad_arguments.status(), 400)
+  assert_true(bad_arguments.body().contains("-32602"[:]))
+  let missing_name =
+    #|{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}
+  match validate_mcp_http_request(missing_name, HttpHeaders::empty()) {
+    Ok(_) => panic()
+    Err(response) => assert_eq(response.error().code(), MCP_HEADER_MISMATCH)
+  }
+}
+
+///|
+test "tool call results carry content and structured content" {
+  let post = mcp_post_json(
+    4,
+    "T",
+    "s",
+    "e",
+    "c",
+    false,
+    "draft",
+    None,
+    "2026-09-22T00:00:00.000Z",
+  )
+  let ok = tools_call_result(Json::number(1.0), ({ "post": post } : Json))
+  assert_true(ok.contains("\"structuredContent\""[:]))
+  assert_true(!ok.contains("\"isError\""[:]))
+  let err = tools_call_error(Json::number(1.0), "Post not found.")
+  assert_true(err.contains("\"isError\":true"[:]))
+  assert_true(err.contains("Post not found."[:]))
 }

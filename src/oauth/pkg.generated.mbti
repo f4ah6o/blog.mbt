@@ -1,0 +1,277 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "f4ah6o/blog.mbt/oauth"
+
+import {
+  "mizchi/cloudflare",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+}
+
+// Values
+pub const ACCESS_TOKEN_TTL_SECONDS : Int = 3600
+
+pub const OAUTH_WEBAUTHN_CHALLENGE_TTL_SECONDS : Int = 300
+
+pub const PENDING_AUTHORIZATION_TTL_SECONDS : Int = 300
+
+pub const REFRESH_TOKEN_TTL_SECONDS : Int = 2592000
+
+pub const SCOPE_MCP_DISCOVER : String = "mcp:discover"
+
+pub const SCOPE_OFFLINE_ACCESS : String = "offline_access"
+
+pub const SCOPE_PUBLISH : String = "blog:publish"
+
+pub const SCOPE_READ : String = "blog:read"
+
+pub const SCOPE_WRITE : String = "blog:write"
+
+pub fn access_token_record(String, String, String, String, Int, Int) -> AccessTokenRecord?
+
+pub fn authorization_code_record(String, String, String, String, String, String, String, Int, Int) -> AuthorizationCodeRecord?
+
+pub async fn authorization_code_scope(@cloudflare.D1Database, String, String, String, String, String, Int) -> String?
+
+pub fn authorization_redirect(String, String, String, String?) -> String
+
+pub fn authorization_redirect_with_issuer(String, String, String, String?, String) -> String
+
+pub fn authorization_server_metadata(String) -> String
+
+pub async fn authorize_protected_resource(@cloudflare.D1Database, String, String?, String, Int) -> ProtectedResourceAuthorization
+
+pub fn canonical_base_url(String) -> String?
+
+pub async fn claim_oauth_webauthn_challenge(@cloudflare.D1Database, String, String, Int) -> String?
+
+pub async fn claim_pending_authorization(@cloudflare.D1Database, String, String, Int) -> AuthorizationRequest?
+
+pub async fn delete_oauth_webauthn_challenge(@cloudflare.D1Database, String, String) -> Unit
+
+pub async fn fetch_client_metadata_document(String, String, @cloudflare.CloudflareEnv) -> String?
+
+pub async fn generate_opaque_secret() -> String
+
+pub async fn insert_access_token(@cloudflare.D1Database, AccessTokenRecord) -> Unit raise @cloudflare.D1Error
+
+pub async fn insert_authorization_code(@cloudflare.D1Database, AuthorizationCodeRecord) -> Unit
+
+pub async fn insert_oauth_webauthn_challenge(@cloudflare.D1Database, String, String, String, Int, Int) -> Bool
+
+pub async fn insert_pending_authorization(@cloudflare.D1Database, PendingAuthorization) -> String
+
+pub async fn insert_refresh_token(@cloudflare.D1Database, RefreshTokenRecord) -> Unit raise @cloudflare.D1Error
+
+pub fn is_unexpired(Int, Int) -> Bool
+
+pub async fn lookup_access_token(@cloudflare.D1Database, String, String, String, Int) -> AccessTokenRecord?
+
+pub async fn lookup_access_token_for_resource(@cloudflare.D1Database, String, String, Int) -> AccessTokenRecord?
+
+pub async fn lookup_refresh_token(@cloudflare.D1Database, String, String, String, Int) -> RefreshTokenRecord? raise @cloudflare.D1Error
+
+pub fn parse_bearer_header(String) -> BearerToken?
+
+pub fn parse_client_metadata(String, String) -> ClientMetadata?
+
+pub fn parse_oauth_token_form(String) -> OAuthTokenRequest?
+
+pub fn pending_authorization(String, String, AuthorizationRequest, Int, Int) -> PendingAuthorization?
+
+pub fn pending_claim_is_allowed(Bool, Int?, Int, Int) -> Bool
+
+pub async fn pkce_s256(String) -> String?
+
+pub fn protected_resource_challenge(String, String, String?) -> String?
+
+pub fn protected_resource_decision(AccessTokenRecord?, String) -> ProtectedResourceAuthorization
+
+pub fn protected_resource_metadata(String) -> String
+
+pub fn protected_resource_record_decision(AccessTokenRecord?, String, String, Int) -> ProtectedResourceAuthorization
+
+pub fn protected_resource_scopes() -> Array[String]
+
+pub async fn redeem_authorization_code(@cloudflare.D1Database, String, String, String, String, String, Int) -> RedeemAuthorizationCodeResult raise @cloudflare.D1Error
+
+pub async fn redeem_authorization_code_with_tokens(@cloudflare.D1Database, String, String, String, String, String, Int, AccessTokenRecord, RefreshTokenRecord?) -> RedeemAuthorizationCodeResult
+
+pub fn redeem_is_allowed(Bool, Int?, Int, Int) -> Bool
+
+pub fn refresh_rotation_decision(Bool, Int?, Int?, Int, Int) -> RefreshRotationDecision
+
+pub fn refresh_token_record(String, String, String, String, String, Int, Int) -> RefreshTokenRecord?
+
+pub async fn refresh_token_replay_detected(@cloudflare.D1Database, String, String, String) -> Bool raise @cloudflare.D1Error
+
+pub async fn revoke_access_token(@cloudflare.D1Database, String, String, String, Int) -> Unit raise @cloudflare.D1Error
+
+pub async fn revoke_refresh_family(@cloudflare.D1Database, String, Int) -> Unit raise @cloudflare.D1Error
+
+pub async fn revoke_refresh_family_for_token(@cloudflare.D1Database, String, String, String, Int) -> Unit raise @cloudflare.D1Error
+
+pub async fn rotate_refresh_token(@cloudflare.D1Database, String, String, String, String, Int, Int, Int) -> RefreshRotationDecision raise @cloudflare.D1Error
+
+pub async fn rotate_refresh_token_with_access(@cloudflare.D1Database, String, String, String, String, Int, Int, Int, AccessTokenRecord) -> RefreshRotationDecision raise @cloudflare.D1Error
+
+pub fn scope_contains(String, String) -> Bool
+
+pub async fn sha256_hex(String) -> String
+
+pub fn supported_scopes() -> Array[String]
+
+pub fn valid_redirect_uri(String) -> Bool
+
+pub fn validate_authorization_request(String, String, String, String, String, String, String, String?, String, ClientMetadata) -> AuthorizationRequest?
+
+pub fn validate_client_id_url(String) -> Bool
+
+pub fn validate_oauth_token_request(OAuthTokenRequest) -> TokenGrant?
+
+pub fn validate_opaque_secret(String) -> Bool
+
+pub fn validate_pkce_challenge(String) -> Bool
+
+pub fn validate_pkce_verifier(String) -> Bool
+
+pub fn validate_protected_resource_scope(String) -> Bool
+
+pub fn validate_scope(String) -> Bool
+
+pub fn validate_sha256_hex(String) -> Bool
+
+pub async fn verify_pkce_s256(String, String) -> Bool
+
+// Errors
+
+// Types and methods
+pub struct AccessTokenRecord {
+  token_hash : String
+  client_id : String
+  resource : String
+  scope : String
+  created_at : Int
+  expires_at : Int
+} derive(Eq, @debug.Debug)
+pub fn AccessTokenRecord::client_id(Self) -> String
+pub fn AccessTokenRecord::expires_at(Self) -> Int
+pub fn AccessTokenRecord::resource(Self) -> String
+pub fn AccessTokenRecord::scope(Self) -> String
+
+type AccessTokenRow derive(@json.FromJson)
+
+pub struct AuthorizationCodeRecord {
+  code_hash : String
+  client_id : String
+  redirect_uri : String
+  resource : String
+  scope : String
+  code_challenge : String
+  code_challenge_method : String
+  created_at : Int
+  expires_at : Int
+}
+
+type AuthorizationCodeScopeRow derive(@json.FromJson)
+
+pub struct AuthorizationRequest {
+  client_id : String
+  redirect_uri : String
+  resource : String
+  scope : String
+  code_challenge : String
+  code_challenge_method : String
+  state : String?
+} derive(ToJson, @json.FromJson)
+pub fn AuthorizationRequest::code_record(Self, String, Int, Int) -> AuthorizationCodeRecord?
+pub fn AuthorizationRequest::code_redirect(Self, String) -> String
+pub fn AuthorizationRequest::code_redirect_with_issuer(Self, String, String) -> String
+pub fn AuthorizationRequest::from_json_string(String) -> Self?
+pub fn AuthorizationRequest::to_json_string(Self) -> String
+
+type AuthorizationServerMetadata derive(ToJson)
+
+pub struct BearerToken {
+  token : String
+} derive(Eq, @debug.Debug)
+
+pub struct ClientMetadata {
+  client_id : String
+  client_name : String
+  redirect_uris : Array[String]
+}
+pub fn ClientMetadata::redirect_uri_allowed(Self, String) -> Bool
+
+type ClientMetadataDocument derive(@json.FromJson)
+
+type FormPair derive(@json.FromJson)
+
+pub struct OAuthTokenRequest {
+  grant_type : String
+  code : String?
+  client_id : String?
+  redirect_uri : String?
+  resource : String?
+  code_verifier : String?
+  refresh_token : String?
+}
+pub fn OAuthTokenRequest::client_id(Self) -> String?
+pub fn OAuthTokenRequest::code(Self) -> String?
+pub fn OAuthTokenRequest::code_verifier(Self) -> String?
+pub fn OAuthTokenRequest::grant_type(Self) -> String
+pub fn OAuthTokenRequest::redirect_uri(Self) -> String?
+pub fn OAuthTokenRequest::refresh_token(Self) -> String?
+pub fn OAuthTokenRequest::resource(Self) -> String?
+
+pub struct PendingAuthorization {
+  challenge_id : String
+  user_id : String
+  request : AuthorizationRequest
+  created_at : Int
+  expires_at : Int
+}
+pub fn PendingAuthorization::bound_request(Self) -> AuthorizationRequest
+pub fn PendingAuthorization::challenge_identifier(Self) -> String
+pub fn PendingAuthorization::expiry(Self) -> Int
+
+pub(all) enum ProtectedResourceAuthorization {
+  Authorized(AccessTokenRecord)
+  MissingToken
+  InvalidToken
+  InsufficientScope
+  InvalidConfiguration
+  ServerError
+} derive(Eq, @debug.Debug)
+
+type ProtectedResourceMetadata derive(ToJson)
+
+pub(all) enum RedeemAuthorizationCodeResult {
+  AuthorizationCodeRedeemed(String)
+  AuthorizationCodeInvalid
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RefreshRotationDecision {
+  RefreshRotated
+  RefreshReplay
+  RefreshInvalid
+} derive(Eq, @debug.Debug)
+
+pub struct RefreshTokenRecord {
+  token_hash : String
+  family_hash : String
+  client_id : String
+  resource : String
+  scope : String
+  created_at : Int
+  expires_at : Int
+}
+pub fn RefreshTokenRecord::scope(Self) -> String
+
+pub(all) enum TokenGrant {
+  AuthorizationCode
+  RefreshToken
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

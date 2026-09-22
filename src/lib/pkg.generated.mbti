@@ -75,4 +75,3 @@ pub using @content {type EmbedType}
 pub using @content {type LinkCard}
 
 // Traits
-

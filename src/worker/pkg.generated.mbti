@@ -2,9 +2,11 @@
 package "f4ah6o/blog.mbt/worker"
 
 import {
+  "f4ah6o/blog.mbt/oauth",
   "mizchi/cloudflare",
   "mizchi/js/core",
   "mizchi/js/web/http",
+  "moonbitlang/core/json",
 }
 
 // Values
@@ -14,11 +16,21 @@ pub fn get_d1(@cloudflare.CloudflareEnv) -> @cloudflare.D1Database?
 
 pub fn get_fetch_handler() -> (@cloudflare.CloudflareRequest, @cloudflare.CloudflareEnv, @cloudflare.CloudflareContext) -> @core.Promise[@http.Response]
 
+pub async fn handle_mcp_request(@cloudflare.CloudflareRequest, @cloudflare.CloudflareEnv, String, String) -> @http.Response?
+
+pub async fn handle_oauth_request(@cloudflare.CloudflareRequest, @cloudflare.CloudflareEnv, @core.Any, String, String) -> @http.Response?
+
+pub fn mcp_auth_challenge_error(@oauth.ProtectedResourceAuthorization) -> String?
+
+pub fn mcp_auth_status(@oauth.ProtectedResourceAuthorization) -> Int
+
+pub fn mcp_http_preflight_status(String, String, String) -> Int
+
 // Errors
 
 // Types and methods
+type OAuthVerifyRequest derive(@json.FromJson)
 
 // Type aliases
 
 // Traits
-

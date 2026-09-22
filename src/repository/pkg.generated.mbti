@@ -20,4 +20,3 @@ pub async fn list_posts(@cloudflare.D1Database, Int, Int) -> Array[@models.BlogP
 // Type aliases
 
 // Traits
-
