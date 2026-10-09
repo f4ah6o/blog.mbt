@@ -129,3 +129,4 @@ Branch: feature/port-to-rabbita
 - 2026-07-23: 管理画面は今回の移行対象から除外し、将来廃棄する方針を確認した。
 - 2026-07-23: Rabbitaは公開版を使用し、Proped-Rabbitaは最新 `main` を追従する方針を確認した。
 - 2026-07-23: Papyr本体は変更せず、ブログ側のTMPX→Rabbita出力アダプターを暫定利用する方針を確認した。
+- 2026-10-09: main (ec73ce5) 時点で再確認。公開ビューは引き続きTMPX、ページングはMHX、rabbita/proped-rabbita依存は未導入のため open のまま。
