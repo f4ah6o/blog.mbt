@@ -1,6 +1,6 @@
 # OKF Markdownを正本にしたローカルPreviewとD1投影を導入する
 
-Status: open
+Status: done
 Model: unknown
 Created: 2026-07-23
 Updated: 2026-07-23
@@ -158,3 +158,7 @@ published_at: null
 - 現行リポジトリは公開コードリポジトリであり、Private知識本文は別リポジトリに置く。
 - R2/Finder、Publisher Worker、Queue、Access、`promote` は後続段階で追加する。
 - CloudflareのWorkers BuildsはPrivate GitHubリポジトリをGitHub Appで接続できるが、今回の段階ではPublisherの実装方法を固定しない。
+
+## クローズ記録
+
+- 2026-10-09: main (ec73ce5) 時点で受け入れ条件を満たす実装が 56c9c1a "feat: add OKF local preview projection" として landed 済みのため done へ移動。`just preview` (scripts/preview.mjs)、`just content-check` / `just content-sync` (scripts/okf_content.mjs の validate/sync)、`just content-export` (scripts/export_posts.mjs、verify_round_trip による差分検査) が揃っており、`BLOG_PREVIEW_DRAFTS` は preview.mjs 起動時のみ設定されるため draft は公開ルートから返らない。`BLOG_KNOWLEDGE_DIR` で公開リポジトリ外のPrivate bundleを入力できる。
