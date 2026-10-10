@@ -36,6 +36,12 @@ export default defineConfig((ctx) => {
             OAUTH_AUTH: bindings.kv({
               id: "YOUR_OAUTH_KV_NAMESPACE_ID",
             }),
+            // declared so `.dev.vars` can supply values locally; remote values
+            // are the worker's existing secrets (set via `wrangler secret put`)
+            ADMIN_USER_ID: bindings.secret(),
+            JWT_SECRET: bindings.secret(),
+            ADMIN_SETUP_TOKEN: bindings.secret(),
+            OAUTH_USER_ID: bindings.secret(),
             ASSETS: bindings.assets(),
           },
         },
@@ -65,6 +71,10 @@ export default defineConfig((ctx) => {
             OAUTH_AUTH: bindings.kv({
               id: "YOUR_OAUTH_KV_NAMESPACE_ID",
             }),
+            ADMIN_USER_ID: bindings.secret(),
+            JWT_SECRET: bindings.secret(),
+            ADMIN_SETUP_TOKEN: bindings.secret(),
+            OAUTH_USER_ID: bindings.secret(),
             ASSETS: bindings.assets(),
           },
         },
@@ -93,6 +103,10 @@ export default defineConfig((ctx) => {
             OAUTH_AUTH: bindings.kv({
               id: "YOUR_OAUTH_KV_NAMESPACE_ID",
             }),
+            ADMIN_USER_ID: bindings.secret(),
+            JWT_SECRET: bindings.secret(),
+            ADMIN_SETUP_TOKEN: bindings.secret(),
+            OAUTH_USER_ID: bindings.secret(),
             ASSETS: bindings.assets(),
           },
         },
