@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const default_bundle_path = "dist/blog/index.js";
+const default_bundle_path = ".cloudflare/output/v0/workers/default/bundle/index.js";
 
 const global_seed_declaration = "var _M0FPB4seed = _M0FPB12random__seed();";
 const lazy_seed_declaration = `var _M0FPB4seed = 0;

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { export_posts, parse_wrangler_json, render_article, verify_round_trip } from "./export_posts.mjs";
+import { export_posts, parse_cf_json, render_article, verify_round_trip } from "./export_posts.mjs";
 
 test("renders a blog post with explicit visibility metadata", () => {
   const markdown = render_article({
@@ -39,10 +39,25 @@ test("preserves legacy slide front matter inside the OKF article", () => {
   assert.match(markdown, /## One/);
 });
 
-test("parses Wrangler JSON result envelopes", () => {
+test("parses cf d1 query result envelopes (object rows)", () => {
   assert.deepEqual(
-    parse_wrangler_json(JSON.stringify([{ results: [{ slug: "one" }] }, { results: [{ slug: "two" }] }])),
+    parse_cf_json(JSON.stringify([{ results: [{ slug: "one" }] }, { results: [{ slug: "two" }] }])),
     [{ slug: "one" }, { slug: "two" }],
+  );
+});
+
+test("parses cf d1 raw result envelopes (columns + row arrays)", () => {
+  assert.deepEqual(
+    parse_cf_json(
+      JSON.stringify([
+        {
+          success: true,
+          results: { columns: ["slug", "title"], rows: [["one", "One"], ["two", "Two"]] },
+          meta: {},
+        },
+      ]),
+    ),
+    [{ slug: "one", title: "One" }, { slug: "two", title: "Two" }],
   );
 });
 

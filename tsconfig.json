@@ -9,5 +9,5 @@
     "lib": ["ESNext", "DOM"],
     "types": ["node", "@cloudflare/workers-types"]
   },
-  "include": ["src/**/*.ts", "vite.config.ts", "vite.markable.config.ts"]
+  "include": ["src/**/*.ts", "vite.config.ts", "vite.markable.config.ts", "cloudflare.config.ts"]
 }
