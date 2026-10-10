@@ -149,24 +149,25 @@ WebAuthn で保護されています。初回のみセットアップトーク�
 
 #### 環境設定
 
-`wrangler.toml.example` を `wrangler.toml` にコピーして設定します。
+`cloudflare.config.ts.example` を `cloudflare.config.ts` にコピーし、`YOUR_*` プレースホルダを実値に置き換えます。
 
-```bash
-# wrangler.toml
-[[kv_namespaces]]
-binding = "ADMIN_AUTH"
-id = "YOUR_KV_NAMESPACE_ID"  # wrangler kv:namespace create "ADMIN_AUTH" で取得
-
-[[kv_namespaces]]
-binding = "OAUTH_AUTH"
-id = "YOUR_OAUTH_KV_NAMESPACE_ID"  # OAuth 用 WebAuthn credential/challenge 専用
-
-[vars]
-RP_ID = "your-domain.com"        # WebAuthn Relying Party ID
-RP_ORIGIN = "https://your-domain.com"  # オリジン
-RP_NAME = "Your Site Name"       # サイト名
-OAUTH_RP_ID = "your-domain.com"  # OAuth resource-owner WebAuthn RP ID
-OAUTH_RP_ORIGIN = "https://your-domain.com"
+```ts
+// cloudflare.config.ts の default ケース
+ADMIN_AUTH: bindings.kv({
+  id: "YOUR_KV_NAMESPACE_ID",  // cf kv namespaces create "ADMIN_AUTH" で取得
+}),
+OAUTH_AUTH: bindings.kv({
+  id: "YOUR_OAUTH_KV_NAMESPACE_ID",  // OAuth 用 WebAuthn credential/challenge 専用
+}),
+BLOG_DB: bindings.d1({
+  name: "blog-db",
+  id: "YOUR_D1_DATABASE_ID",  // cf d1 list で取得
+}),
+RP_ID: bindings.text("your-domain.com"),        // WebAuthn Relying Party ID
+RP_ORIGIN: bindings.text("https://your-domain.com"),  // オリジン
+RP_NAME: bindings.text("Your Site Name"),       // サイト名
+OAUTH_RP_ID: bindings.text("your-domain.com"),  // OAuth resource-owner WebAuthn RP ID
+OAUTH_RP_ORIGIN: bindings.text("https://your-domain.com"),
 ```
 
 #### シークレット（本番環境）
@@ -190,11 +191,11 @@ OAuth 専用の登録 UI/API は現時点では提供していないため、こ
 # 値をターミナルへ表示せず、credential レコードだけを複製する例
 opz run blog -- sh -c '\
   set -eu; umask 077; tmp=$(mktemp); trap "rm -f $tmp" EXIT; \
-  npx wrangler kv key get "credentials:$ADMIN_USER_ID" \
-    --binding ADMIN_AUTH --remote --text > "$tmp"; \
+  pnpm exec cf kv keys get "credentials:$ADMIN_USER_ID" \
+    --namespace-id "$ADMIN_AUTH_NAMESPACE_ID" --text > "$tmp"; \
   test -s "$tmp"; \
-  npx wrangler kv key put "credentials:$OAUTH_USER_ID" \
-    --binding OAUTH_AUTH --remote --path "$tmp"\
+  pnpm exec cf kv keys put "credentials:$OAUTH_USER_ID" \
+    --namespace-id "$OAUTH_AUTH_NAMESPACE_ID" --file "$tmp"\
 '
 ```
 
@@ -260,7 +261,7 @@ just deploy-migrate-db
 ### SQL で直接追加
 
 ```bash
-npx wrangler d1 execute blog-db --local --command \
+node scripts/d1.mjs exec --local --sql \
   "INSERT INTO posts (title, slug, excerpt, content, slide_flag, status, published_at, updated_at)
    VALUES ('My Post', 'my-post', 'short excerpt', 'full content', 0, 'published',
            datetime('now'), datetime('now'));"

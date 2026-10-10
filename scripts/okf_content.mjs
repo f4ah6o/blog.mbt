@@ -7,10 +7,11 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { extname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+
+import { run_local_d1 } from "./d1.mjs";
 
 const POST_TYPES = new Set(["Blog Post", "Slide Deck"]);
 const KNOWLEDGE_TYPES = new Set([
@@ -284,17 +285,7 @@ export function generate_sync_sql(bundle) {
 
 export function sync_local_database(bundle) {
   const sql = generate_sync_sql(bundle);
-  const temporary_directory = join(tmpdir(), `blog-okf-${process.pid}-${Date.now()}`);
-  const sql_path = join(temporary_directory, "sync.sql");
-  mkdirSync(temporary_directory, { recursive: true });
-  writeFileSync(sql_path, sql, "utf8");
-  try {
-    execFileSync("pnpm", ["exec", "wrangler", "d1", "execute", "blog-db", "--local", "--file", sql_path], {
-      stdio: "inherit",
-    });
-  } finally {
-    rmSync(temporary_directory, { recursive: true, force: true });
-  }
+  run_local_d1(sql);
   return { post_count: post_rows(bundle).length };
 }
 

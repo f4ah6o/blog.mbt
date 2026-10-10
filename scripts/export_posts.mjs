@@ -1,8 +1,8 @@
-import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { parse_cf_d1_json, run_local_d1, run_remote_d1 } from "./d1.mjs";
 import { load_bundle, post_rows } from "./okf_content.mjs";
 
 const QUERY = [
@@ -74,11 +74,7 @@ export function verify_round_trip(rows, output_directory) {
   return errors;
 }
 
-export function parse_wrangler_json(output) {
-  const parsed = JSON.parse(output);
-  const results = Array.isArray(parsed) ? parsed.flatMap((entry) => entry.results ?? []) : parsed.results ?? [];
-  return results;
-}
+export const parse_cf_json = parse_cf_d1_json;
 
 function option_value(args, name) {
   const index = args.indexOf(name);
@@ -87,12 +83,8 @@ function option_value(args, name) {
 
 export function fetch_posts(args = []) {
   const location = args.includes("--remote") ? "--remote" : "--local";
-  const output = execFileSync(
-    "pnpm",
-    ["exec", "wrangler", "d1", "execute", "blog-db", location, "--command", QUERY, "--json"],
-    { encoding: "utf8" },
-  );
-  return parse_wrangler_json(output);
+  const output = location === "--remote" ? run_remote_d1(QUERY) : run_local_d1(QUERY);
+  return parse_cf_d1_json(output);
 }
 
 function ensure_empty_output(directory) {
