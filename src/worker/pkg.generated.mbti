@@ -4,8 +4,8 @@ package "f4ah6o/blog.mbt/worker"
 import {
   "f4ah6o/blog.mbt/oauth",
   "mizchi/cloudflare",
-  "mizchi/js/core",
-  "mizchi/js/web/http",
+  "mizchi/js_core",
+  "mizchi/js_web/http",
   "moonbitlang/core/json",
 }
 
@@ -14,11 +14,11 @@ pub fn extract_slug(String) -> String?
 
 pub fn get_d1(@cloudflare.CloudflareEnv) -> @cloudflare.D1Database?
 
-pub fn get_fetch_handler() -> (@cloudflare.CloudflareRequest, @cloudflare.CloudflareEnv, @cloudflare.CloudflareContext) -> @core.Promise[@http.Response]
+pub fn get_fetch_handler() -> (@cloudflare.CloudflareRequest, @cloudflare.CloudflareEnv, @cloudflare.CloudflareContext) -> @js_core.Promise[@http.Response]
 
 pub async fn handle_mcp_request(@cloudflare.CloudflareRequest, @cloudflare.CloudflareEnv, String, String) -> @http.Response?
 
-pub async fn handle_oauth_request(@cloudflare.CloudflareRequest, @cloudflare.CloudflareEnv, @core.Any, String, String) -> @http.Response?
+pub async fn handle_oauth_request(@cloudflare.CloudflareRequest, @cloudflare.CloudflareEnv, @js_core.Any, String, String) -> @http.Response?
 
 pub fn mcp_auth_challenge_error(@oauth.ProtectedResourceAuthorization) -> String?
 

@@ -1,7 +1,7 @@
 import {
   "f4ah6o/blog.mbt/models",
   "mizchi/cloudflare",
-  "mizchi/js/core",
+  "mizchi/js_core" @core,
 }
 
 supported_targets = "js"

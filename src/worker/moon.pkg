@@ -8,9 +8,9 @@ import {
   "f4ah6o/blog.mbt/mcp",
   "f4ah6o/blog.mbt/identity",
   "mizchi/cloudflare",
-  "mizchi/js/builtins/global",
-  "mizchi/js/core",
-  "mizchi/js/web/http",
+  "mizchi/js_builtin/global",
+  "mizchi/js_core" @core,
+  "mizchi/js_web/http",
   "moonbitlang/core/json",
   "moonbitlang/core/hashmap",
 }
