@@ -1,6 +1,6 @@
 import {
   "mizchi/cloudflare",
-  "mizchi/js/core",
+  "mizchi/js_core" @core,
   "moonbitlang/core/json",
   "f4ah6o/simple-webauthn/server" @webauthn_server,
   "f4ah6o/simple-webauthn/helpers" @webauthn_helpers,

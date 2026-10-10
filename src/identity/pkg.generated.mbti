@@ -3,31 +3,31 @@ package "f4ah6o/blog.mbt/identity"
 
 import {
   "mizchi/cloudflare",
-  "mizchi/js/core",
+  "mizchi/js_core",
   "moonbitlang/core/debug",
   "moonbitlang/core/json",
 }
 
 // Values
-pub async fn add_credential(@core.Any, String, StoredCredential) -> Unit
+pub async fn add_credential(@js_core.Any, String, StoredCredential) -> Unit
 
-pub async fn consume_challenge(@core.Any, String, String, String) -> StoredChallenge?
+pub async fn consume_challenge(@js_core.Any, String, String, String) -> StoredChallenge?
 
-pub async fn delete_challenge(@core.Any, String, String) -> Unit
+pub async fn delete_challenge(@js_core.Any, String, String) -> Unit
 
-pub async fn find_credential_by_id(@core.Any, String, String) -> StoredCredential?
+pub async fn find_credential_by_id(@js_core.Any, String, String) -> StoredCredential?
 
-pub async fn generate_auth_options(@core.Any, String, String) -> AuthOptionsResponse
+pub async fn generate_auth_options(@js_core.Any, String, String) -> AuthOptionsResponse
 
-pub async fn generate_auth_options_with_timeout(@core.Any, String, String, Int) -> AuthOptionsResponse
+pub async fn generate_auth_options_with_timeout(@js_core.Any, String, String, Int) -> AuthOptionsResponse
 
-pub async fn generate_reg_options(@core.Any, String, String, String, String) -> RegOptionsResponse
+pub async fn generate_reg_options(@js_core.Any, String, String, String, String) -> RegOptionsResponse
 
-pub async fn get_challenge(@core.Any, String, String) -> StoredChallenge?
+pub async fn get_challenge(@js_core.Any, String, String) -> StoredChallenge?
 
-pub async fn get_credentials(@core.Any, String) -> Array[StoredCredential]
+pub async fn get_credentials(@js_core.Any, String) -> Array[StoredCredential]
 
-pub fn get_oauth_auth_kv(@cloudflare.CloudflareEnv) -> @core.Any?
+pub fn get_oauth_auth_kv(@cloudflare.CloudflareEnv) -> @js_core.Any?
 
 pub fn get_oauth_origin(@cloudflare.CloudflareEnv) -> String?
 
@@ -41,19 +41,19 @@ pub fn get_rp_name(@cloudflare.CloudflareEnv) -> String?
 
 pub fn get_rp_origin(@cloudflare.CloudflareEnv) -> String?
 
-pub async fn save_challenge(@core.Any, String, String, String, String) -> Unit
+pub async fn save_challenge(@js_core.Any, String, String, String, String) -> Unit
 
-pub async fn save_credentials(@core.Any, String, Array[StoredCredential]) -> Unit
+pub async fn save_credentials(@js_core.Any, String, Array[StoredCredential]) -> Unit
 
 pub fn should_use_secure_cookie(@cloudflare.CloudflareEnv) -> Bool
 
-pub async fn update_credential_counter(@core.Any, String, String, UInt) -> Unit
+pub async fn update_credential_counter(@js_core.Any, String, String, UInt) -> Unit
 
-pub async fn verify_authentication(@core.Any, String, String, String, AuthVerifyRequest) -> AuthVerifyResult
+pub async fn verify_authentication(@js_core.Any, String, String, String, AuthVerifyRequest) -> AuthVerifyResult
 
-pub async fn verify_authentication_with_challenge(@core.Any, String, String, String, AuthVerifyRequest, String) -> AuthVerifyResult
+pub async fn verify_authentication_with_challenge(@js_core.Any, String, String, String, AuthVerifyRequest, String) -> AuthVerifyResult
 
-pub async fn verify_registration(@core.Any, String, String, String, RegVerifyRequest) -> RegVerifyResult
+pub async fn verify_registration(@js_core.Any, String, String, String, RegVerifyRequest) -> RegVerifyResult
 
 // Errors
 

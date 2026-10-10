@@ -1,8 +1,8 @@
 import {
   "f4ah6o/blog.mbt/lib",
   "mizchi/cloudflare",
-  "mizchi/js/core",
-  "mizchi/js/web/http",
+  "mizchi/js_core" @core,
+  "mizchi/js_web/http",
   "moonbitlang/core/string",
   "moonbitlang/core/json",
   "f4ah6o/blog.mbt/tmpx_compat" @tmpx,
