@@ -1,5 +1,5 @@
 ///|
-pub const MCP_TOOLS_TTL_MS : Int = 3600000
+pub const MCP_TOOLS_TTL_MS : Int32 = 3600000
 
 ///|
 fn tools_list_params_error(params : Json?) -> JsonRpcError? {

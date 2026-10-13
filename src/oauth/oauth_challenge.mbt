@@ -3,7 +3,7 @@
 /// Cloudflare routes authorize and verify to different edge locations. D1 is
 /// used for this short-lived, one-time value because KV is eventually
 /// consistent across locations.
-pub const OAUTH_WEBAUTHN_CHALLENGE_TTL_SECONDS : Int = 300
+pub const OAUTH_WEBAUTHN_CHALLENGE_TTL_SECONDS : Int32 = 300
 
 ///|
 extern "js" fn insert_oauth_webauthn_challenge_js(
@@ -11,8 +11,8 @@ extern "js" fn insert_oauth_webauthn_challenge_js(
   challenge_id : String,
   user_id : String,
   challenge : String,
-  created_at : Int,
-  expires_at : Int,
+  created_at : Int32,
+  expires_at : Int32,
 ) -> @core.Promise[Bool] =
   #| async (db, challengeId, userId, challenge, createdAt, expiresAt) => {
   #|   try {
@@ -31,7 +31,7 @@ extern "js" fn claim_oauth_webauthn_challenge_js(
   db : @core.Any,
   challenge_id : String,
   user_id : String,
-  now : Int,
+  now : Int32,
 ) -> @core.Promise[String?] =
   #| async (db, challengeId, userId, now) => {
   #|   try {
@@ -66,8 +66,8 @@ pub async fn insert_oauth_webauthn_challenge(
   challenge_id : String,
   user_id : String,
   challenge : String,
-  created_at : Int,
-  expires_at : Int,
+  created_at : Int32,
+  expires_at : Int32,
 ) -> Bool {
   insert_oauth_webauthn_challenge_js(
     db.as_any(),
@@ -86,7 +86,7 @@ pub async fn claim_oauth_webauthn_challenge(
   db : @cloudflare.D1Database,
   challenge_id : String,
   user_id : String,
-  now : Int,
+  now : Int32,
 ) -> String? {
   claim_oauth_webauthn_challenge_js(db.as_any(), challenge_id, user_id, now).wait() catch {
     _ => None

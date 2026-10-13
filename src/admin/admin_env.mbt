@@ -55,7 +55,7 @@ fn get_jwt_secret(env : @cloudflare.CloudflareEnv) -> String? {
 
 ///|
 /// Get JWT expiration in seconds (default: 86400 = 24h)
-fn get_jwt_expires_in(env : @cloudflare.CloudflareEnv) -> Int {
+fn get_jwt_expires_in(env : @cloudflare.CloudflareEnv) -> Int32 {
   match get_env_string(env, "JWT_EXPIRES_IN") {
     Some(s) => {
       let parsed = @string.parse_int(s) catch { _ => 0 }

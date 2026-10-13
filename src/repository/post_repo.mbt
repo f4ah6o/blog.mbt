@@ -26,8 +26,8 @@ fn row_to_post(row : @core.Any) -> @models.BlogPost {
 ///|
 pub async fn list_posts(
   db : @cloudflare.D1Database,
-  limit : Int,
-  offset : Int,
+  limit : Int32,
+  offset : Int32,
 ) -> Array[@models.BlogPost] raise @cloudflare.D1Error {
   let stmt = db.prepare(
     "SELECT * FROM posts WHERE status = 'published' AND visibility = 'public' ORDER BY published_at DESC LIMIT ? OFFSET ?",
@@ -61,7 +61,7 @@ pub async fn get_by_slug(
 ///|
 pub async fn count(
   db : @cloudflare.D1Database,
-) -> Int raise @cloudflare.D1Error {
+) -> Int32 raise @cloudflare.D1Error {
   let stmt = db.prepare(
     "SELECT COUNT(*) as count FROM posts WHERE status = 'published' AND visibility = 'public'",
   )

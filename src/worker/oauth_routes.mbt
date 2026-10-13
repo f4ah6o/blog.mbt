@@ -290,7 +290,7 @@ async fn handle_oauth_verify(
 }
 
 ///|
-fn oauth_token_error(error : String, status : Int) -> @http.Response {
+fn oauth_token_error(error : String, status : Int32) -> @http.Response {
   token_json_response("{\"error\":\"" + error + "\"}", status)
 }
 
@@ -298,7 +298,7 @@ fn oauth_token_error(error : String, status : Int) -> @http.Response {
 fn oauth_token_response(
   access_token : String,
   scope : String,
-  expires_in : Int,
+  expires_in : Int32,
   refresh_token : String?,
 ) -> @http.Response {
   let refresh = match refresh_token {
@@ -604,7 +604,7 @@ extern "js" fn redirect_response(location : String) -> @http.Response =
   #| (location) => new Response(null, { status: 302, headers: { "Location": location } })
 
 ///|
-extern "js" fn oauth_now() -> Int =
+extern "js" fn oauth_now() -> Int32 =
   #| () => Math.floor(Date.now() / 1000)
 
 ///|
@@ -642,6 +642,6 @@ extern "js" fn oauth_basic_client_secret(
 ///|
 extern "js" fn token_json_response(
   body : String,
-  status : Int,
+  status : Int32,
 ) -> @http.Response =
   #| (body, status) => new Response(body, { status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "Pragma": "no-cache" } })

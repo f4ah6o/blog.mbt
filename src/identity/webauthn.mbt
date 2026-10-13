@@ -14,7 +14,7 @@ pub struct AuthOptionsResponse {
   /// Server-generated challenge ID for verification
   challenge_id : String
   /// Timeout in milliseconds
-  timeout : Int
+  timeout : Int32
   /// Relying Party ID
   rp_id : String
   /// Allowed credentials (for non-discoverable flow)
@@ -50,7 +50,7 @@ pub struct RegOptionsResponse {
   /// Server-generated challenge ID for verification
   challenge_id : String
   /// Timeout in milliseconds
-  timeout : Int
+  timeout : Int32
   /// Relying Party info
   rp : RelyingPartyInfoJS
   /// User info
@@ -112,7 +112,7 @@ impl ToJson for UserInfoJS with fn to_json(self) {
 /// Public key credential parameters (JavaScript-friendly format)
 pub struct PubKeyCredParamJS {
   type_ : String
-  alg : Int
+  alg : Int32
 } derive(Debug)
 
 ///|
@@ -166,7 +166,7 @@ pub async fn generate_auth_options_with_timeout(
   kv : @core.Any,
   user_id : String,
   rp_id : String,
-  timeout : Int,
+  timeout : Int32,
 ) -> AuthOptionsResponse {
   // Get existing credentials for the user (async fn - call directly)
   let stored_creds = get_credentials(kv, user_id)
@@ -290,7 +290,7 @@ pub fn AuthVerifyRequest::new(
 /// Result of authentication verification
 pub enum AuthVerifyResult {
   /// Authentication succeeded
-  Success(UInt) // new counter value
+  Success(UInt32) // new counter value
   /// Challenge not found or expired
   ChallengeInvalid
   /// Credential not found

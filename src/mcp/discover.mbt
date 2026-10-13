@@ -4,7 +4,7 @@ pub const MCP_SERVER_INFO_META_KEY : String = "io.modelcontextprotocol/serverInf
 ///|
 /// `server/discover` is cacheable and contains no per-user data in this
 /// server, so the result can be reused across authorization contexts.
-pub const MCP_DISCOVER_TTL_MS : Int = 3600000
+pub const MCP_DISCOVER_TTL_MS : Int32 = 3600000
 
 ///|
 /// Build the MCP 2026-07-28 discovery response. The `tools` capability is

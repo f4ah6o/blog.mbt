@@ -1,11 +1,11 @@
 ///|
-const DEFAULT_LIMIT : Int = 10
+const DEFAULT_LIMIT : Int32 = 10
 
 ///|
-const MAX_LIMIT : Int = 50
+const MAX_LIMIT : Int32 = 50
 
 ///|
-fn parse_page(value : String?) -> Int {
+fn parse_page(value : String?) -> Int32 {
   match value {
     Some(v) =>
       match @global.parse_int(v) {
@@ -17,7 +17,7 @@ fn parse_page(value : String?) -> Int {
 }
 
 ///|
-fn parse_limit(value : String?) -> Int {
+fn parse_limit(value : String?) -> Int32 {
   match value {
     Some(v) =>
       match @global.parse_int(v) {
@@ -36,7 +36,7 @@ fn parse_limit(value : String?) -> Int {
 }
 
 ///|
-fn ceil_div(a : Int, b : Int) -> Int {
+fn ceil_div(a : Int32, b : Int32) -> Int32 {
   (a + b - 1) / b
 }
 
@@ -235,7 +235,7 @@ pub async fn handle_post_detail(
 }
 
 ///|
-fn html_response(body : String, status : Int) -> @http.Response {
+fn html_response(body : String, status : Int32) -> @http.Response {
   let headers = @core.new_object()
   headers["Content-Type"] = @core.any("text/html; charset=utf-8")
   @http.Response::new(body~, status~, headers~)

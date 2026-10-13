@@ -110,16 +110,16 @@ pub async fn verify_pkce_s256(
 }
 
 ///|
-pub fn is_unexpired(expires_at : Int, now : Int) -> Bool {
+pub fn is_unexpired(expires_at : Int32, now : Int32) -> Bool {
   expires_at > now
 }
 
 ///|
 pub fn redeem_is_allowed(
   matches : Bool,
-  consumed_at : Int?,
-  expires_at : Int,
-  now : Int,
+  consumed_at : Int32?,
+  expires_at : Int32,
+  now : Int32,
 ) -> Bool {
   matches && consumed_at is None && is_unexpired(expires_at, now)
 }
@@ -134,10 +134,10 @@ pub(all) enum RefreshRotationDecision {
 ///|
 pub fn refresh_rotation_decision(
   matches : Bool,
-  consumed_at : Int?,
-  revoked_at : Int?,
-  expires_at : Int,
-  now : Int,
+  consumed_at : Int32?,
+  revoked_at : Int32?,
+  expires_at : Int32,
+  now : Int32,
 ) -> RefreshRotationDecision {
   if !matches || revoked_at is Some(_) || !is_unexpired(expires_at, now) {
     RefreshInvalid

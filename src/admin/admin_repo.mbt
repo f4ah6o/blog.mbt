@@ -44,8 +44,8 @@ fn optional_string_or_null(value : String?) -> @core.Any {
 ///|
 pub async fn list_posts(
   db : @core.Any,
-  limit : Int,
-  offset : Int,
+  limit : Int32,
+  offset : Int32,
 ) -> Array[AdminPost] {
   let rows = db_list_posts(db, limit, offset).wait()
   let posts : Array[AdminPost] = []
@@ -56,12 +56,12 @@ pub async fn list_posts(
 }
 
 ///|
-pub async fn count_posts(db : @core.Any) -> Int {
+pub async fn count_posts(db : @core.Any) -> Int32 {
   db_count_posts(db).wait()
 }
 
 ///|
-pub async fn get_post_by_id(db : @core.Any, id : Int) -> AdminPost? {
+pub async fn get_post_by_id(db : @core.Any, id : Int32) -> AdminPost? {
   let row = db_get_post_by_id(db, id).wait()
   if @core.is_null(row) {
     None
@@ -79,7 +79,7 @@ pub async fn insert_post(
   content : String,
   slide_flag : Bool,
   updated_at : String,
-) -> Int {
+) -> Int32 {
   db_insert_post(
     db,
     title,
@@ -100,7 +100,7 @@ pub async fn insert_post(
 ///|
 pub async fn update_post(
   db : @core.Any,
-  id : Int,
+  id : Int32,
   title : String,
   slug : String,
   excerpt : String,
@@ -125,14 +125,14 @@ pub async fn update_post(
 }
 
 ///|
-pub async fn delete_post(db : @core.Any, id : Int) -> Unit {
+pub async fn delete_post(db : @core.Any, id : Int32) -> Unit {
   db_delete_post(db, id).wait()
 }
 
 ///|
 pub async fn set_status(
   db : @core.Any,
-  id : Int,
+  id : Int32,
   status : PostStatus,
   published_at : String?,
   updated_at : String,

@@ -10,7 +10,7 @@ extern "js" fn kv_put(
   kv : @core.Any,
   key : String,
   value : String,
-  ttl_seconds : Int,
+  ttl_seconds : Int32,
 ) -> @core.Promise[Unit] =
   #| async (kv, key, value, ttlSeconds) => {
   #|   const options = ttlSeconds > 0 ? { expirationTtl: ttlSeconds } : {};
@@ -28,7 +28,7 @@ extern "js" fn generate_uuid() -> String =
   #| () => crypto.randomUUID()
 
 ///|
-extern "js" fn now_unix_seconds() -> Int =
+extern "js" fn now_unix_seconds() -> Int32 =
   #| () => Math.floor(Date.now() / 1000)
 
 ///|

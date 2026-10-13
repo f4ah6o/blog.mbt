@@ -4,8 +4,8 @@
 /// turns each variant into exactly one D1 operation under the tool's scope.
 /// There is no delete operation.
 pub(all) enum McpToolCall {
-  ListPosts(limit~ : Int, offset~ : Int)
-  GetPost(id~ : Int)
+  ListPosts(limit~ : Int32, offset~ : Int32)
+  GetPost(id~ : Int32)
   CreatePost(
     title~ : String,
     slug~ : String,
@@ -14,14 +14,14 @@ pub(all) enum McpToolCall {
     slide_flag~ : Bool
   )
   UpdatePost(
-    id~ : Int,
+    id~ : Int32,
     title~ : String,
     slug~ : String,
     excerpt~ : String,
     content~ : String,
     slide_flag~ : Bool
   )
-  PublishPost(id~ : Int)
+  PublishPost(id~ : Int32)
 }
 
 ///|
@@ -66,7 +66,7 @@ fn arg_integer(
   arguments : Map[String, Json],
   key : String,
   required~ : Bool,
-) -> Result[Int?, JsonRpcError] {
+) -> Result[Int32?, JsonRpcError] {
   match arguments.get(key) {
     None =>
       if required {
@@ -127,7 +127,7 @@ fn arg_boolean(
 fn ranged_id(
   arguments : Map[String, Json],
   key : String,
-) -> Result[Int, JsonRpcError] {
+) -> Result[Int32, JsonRpcError] {
   match arg_integer(arguments, key, required=true) {
     Err(error) => Err(error)
     Ok(value) =>
@@ -304,7 +304,7 @@ pub fn McpRequest::tools_call_plan(
 /// The JSON shape of one post inside a tool result. `published_at` is `null`
 /// until the post is first published.
 pub fn mcp_post_json(
-  id : Int,
+  id : Int32,
   title : String,
   slug : String,
   excerpt : String,

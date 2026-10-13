@@ -162,8 +162,8 @@ pub fn AuthorizationRequest::from_json_string(
 pub fn AuthorizationRequest::code_record(
   self : AuthorizationRequest,
   code_hash : String,
-  created_at : Int,
-  expires_at : Int,
+  created_at : Int32,
+  expires_at : Int32,
 ) -> AuthorizationCodeRecord? {
   authorization_code_record(
     code_hash,

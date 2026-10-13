@@ -13,18 +13,18 @@ pub struct SlideContent {
 ///|
 priv struct SlideTheme {
   name : String
-  width : Int
-  height : Int
+  width : Int32
+  height : Int32
   background : String
   panel : String
   title_color : String
   body_color : String
   accent : String
-  title_size : Int
-  body_size : Int
-  line_height : Int
-  padding_x : Int
-  padding_y : Int
+  title_size : Int32
+  body_size : Int32
+  line_height : Int32
+  padding_x : Int32
+  padding_y : Int32
 }
 
 ///|
@@ -102,7 +102,7 @@ fn slide_split_lines(content : String) -> Array[String] {
 }
 
 ///|
-fn join_lines(lines : Array[String], start : Int) -> String {
+fn join_lines(lines : Array[String], start : Int32) -> String {
   if start >= lines.length() {
     return ""
   }
@@ -144,7 +144,7 @@ pub fn parse_slide_front_matter(
     return Ok({ slide_theme: "classic", body: content, })
   }
 
-  let mut closing_idx : Int? = None
+  let mut closing_idx : Int32? = None
   for i = 1; i < lines.length(); i = i + 1 {
     if trim_to_string(lines[i]) == "---" {
       closing_idx = Some(i)
@@ -235,7 +235,7 @@ fn trim_blank_edges(lines : Array[String]) -> Array[String] {
 ///|
 pub fn parse_slides(
   content : String,
-  fallback_title? : String = "Slide",
+  fallback_title~ : String = "Slide",
 ) -> Array[SlideContent] {
   let lines = slide_split_lines(content)
   let slides : Array[SlideContent] = []
@@ -321,7 +321,7 @@ fn escape_html(value : String) -> String {
 }
 
 ///|
-fn wrap_text(text : String, max_chars : Int) -> Array[String] {
+fn wrap_text(text : String, max_chars : Int32) -> Array[String] {
   let trimmed = trim_to_string(text)
   if trimmed == "" {
     return [""]
@@ -365,14 +365,14 @@ priv struct RenderLine {
 
 ///|
 priv struct SlideLayout {
-  title_size : Int
-  body_size : Int
-  line_height : Int
+  title_size : Int32
+  body_size : Int32
+  line_height : Int32
   lines : Array[RenderLine]
 }
 
 ///|
-fn clamp_int(value : Int, min_value : Int, max_value : Int) -> Int {
+fn clamp_int(value : Int32, min_value : Int32, max_value : Int32) -> Int32 {
   if value < min_value {
     min_value
   } else if value > max_value {
@@ -383,8 +383,8 @@ fn clamp_int(value : Int, min_value : Int, max_value : Int) -> Int {
 }
 
 ///|
-fn body_size_candidates(min_size : Int, max_size : Int) -> Array[Int] {
-  let values : Array[Int] = []
+fn body_size_candidates(min_size : Int32, max_size : Int32) -> Array[Int32] {
+  let values : Array[Int32] = []
   let mut size = max_size
   while size >= min_size {
     values.push(size)
@@ -394,7 +394,7 @@ fn body_size_candidates(min_size : Int, max_size : Int) -> Array[Int] {
 }
 
 ///|
-fn compute_wrap_chars(theme : SlideTheme, body_size : Int) -> Int {
+fn compute_wrap_chars(theme : SlideTheme, body_size : Int32) -> Int32 {
   let wrap_chars = 56 * theme.body_size / body_size
   if wrap_chars < 16 {
     16
@@ -404,13 +404,13 @@ fn compute_wrap_chars(theme : SlideTheme, body_size : Int) -> Int {
 }
 
 ///|
-fn compute_title_size(theme : SlideTheme, body_size : Int) -> Int {
+fn compute_title_size(theme : SlideTheme, body_size : Int32) -> Int32 {
   let scaled = theme.title_size * body_size / theme.body_size
   clamp_int(scaled, 40, theme.title_size)
 }
 
 ///|
-fn compute_line_height(theme : SlideTheme, body_size : Int) -> Int {
+fn compute_line_height(theme : SlideTheme, body_size : Int32) -> Int32 {
   let scaled = theme.line_height * body_size / theme.body_size
   let minimum = body_size + 10
   if scaled < minimum {
@@ -423,7 +423,7 @@ fn compute_line_height(theme : SlideTheme, body_size : Int) -> Int {
 ///|
 fn render_lines_from_slide(
   slide : SlideContent,
-  wrap_chars : Int,
+  wrap_chars : Int32,
 ) -> Array[RenderLine] {
   let lines : Array[RenderLine] = []
   for raw_line in slide.lines {
@@ -450,9 +450,9 @@ fn render_lines_from_slide(
 ///|
 fn can_render_all_lines(
   lines : Array[RenderLine],
-  body_start_y : Int,
-  line_height : Int,
-  bottom_limit : Int,
+  body_start_y : Int32,
+  line_height : Int32,
+  bottom_limit : Int32,
 ) -> Bool {
   let mut body_y = body_start_y
   for line in lines {
@@ -469,7 +469,7 @@ fn can_render_all_lines(
 }
 
 ///|
-fn append_ellipsis(text : String, max_chars : Int) -> String {
+fn append_ellipsis(text : String, max_chars : Int32) -> String {
   if max_chars <= 1 {
     return "…"
   }
@@ -492,10 +492,10 @@ fn append_ellipsis(text : String, max_chars : Int) -> String {
 ///|
 fn truncate_lines_for_height(
   lines : Array[RenderLine],
-  body_start_y : Int,
-  line_height : Int,
-  bottom_limit : Int,
-  wrap_chars : Int,
+  body_start_y : Int32,
+  line_height : Int32,
+  bottom_limit : Int32,
+  wrap_chars : Int32,
 ) -> (Array[RenderLine], Bool) {
   let rendered : Array[RenderLine] = []
   let mut body_y = body_start_y
@@ -526,7 +526,7 @@ fn truncate_lines_for_height(
     return (rendered, false)
   }
 
-  let mut last_text_idx : Int? = None
+  let mut last_text_idx : Int32? = None
   for i = 0; i < rendered.length(); i = i + 1 {
     if !rendered[i].is_blank {
       last_text_idx = Some(i)
@@ -580,8 +580,8 @@ fn build_slide_layout(slide : SlideContent, theme : SlideTheme) -> SlideLayout {
 ///|
 fn render_slide_svg(
   slide : SlideContent,
-  index : Int,
-  total : Int,
+  index : Int32,
+  total : Int32,
   theme : SlideTheme,
 ) -> String {
   let sb = StringBuilder()
@@ -724,7 +724,7 @@ pub fn render_slide_deck_page(
   post_title : String,
   slug : String,
   content : String,
-  embed_mode? : Bool = false,
+  embed_mode~ : Bool = false,
 ) -> Result[String, String] {
   let source = match parse_slide_front_matter(content) {
     Ok(v) => v

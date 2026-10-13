@@ -4,7 +4,7 @@
 /// persisted in D1 (BLOG_DB) and keyed by the server-generated, non-secret
 /// challenge identifier, so the one-time claim can be a single conditional
 /// UPDATE rather than an eventually-consistent KV get/delete.
-pub const PENDING_AUTHORIZATION_TTL_SECONDS : Int = 300
+pub const PENDING_AUTHORIZATION_TTL_SECONDS : Int32 = 300
 
 ///|
 /// A short-lived server-side binding between a WebAuthn challenge and an
@@ -15,8 +15,8 @@ pub struct PendingAuthorization {
   challenge_id : String
   user_id : String
   request : AuthorizationRequest
-  created_at : Int
-  expires_at : Int
+  created_at : Int32
+  expires_at : Int32
 }
 
 ///|
@@ -26,8 +26,8 @@ pub fn pending_authorization(
   challenge_id : String,
   user_id : String,
   request : AuthorizationRequest,
-  now : Int,
-  lifetime_seconds : Int,
+  now : Int32,
+  lifetime_seconds : Int32,
 ) -> PendingAuthorization? {
   if challenge_id.is_empty() || user_id.is_empty() || lifetime_seconds <= 0 {
     return None
@@ -49,7 +49,7 @@ pub fn PendingAuthorization::challenge_identifier(
 }
 
 ///|
-pub fn PendingAuthorization::expiry(self : PendingAuthorization) -> Int {
+pub fn PendingAuthorization::expiry(self : PendingAuthorization) -> Int32 {
   self.expires_at
 }
 
@@ -80,8 +80,8 @@ extern "js" fn insert_pending_authorization_js(
   code_challenge : String,
   code_challenge_method : String,
   state : @core.Any,
-  created_at : Int,
-  expires_at : Int,
+  created_at : Int32,
+  expires_at : Int32,
 ) -> @core.Promise[String] =
   #| async (db, challengeId, userId, clientId, redirectUri, resource, scope, codeChallenge, codeChallengeMethod, state, createdAt, expiresAt) => {
   #|   try {
@@ -127,9 +127,9 @@ pub async fn insert_pending_authorization(
 /// claim observes a consumed row (or no row) and fails closed.
 pub fn pending_claim_is_allowed(
   matches : Bool,
-  consumed_at : Int?,
-  expires_at : Int,
-  now : Int,
+  consumed_at : Int32?,
+  expires_at : Int32,
+  now : Int32,
 ) -> Bool {
   matches && consumed_at is None && is_unexpired(expires_at, now)
 }
@@ -142,7 +142,7 @@ extern "js" fn claim_pending_authorization_js(
   db : @core.Any,
   challenge_id : String,
   user_id : String,
-  now : Int,
+  now : Int32,
 ) -> @core.Promise[String?] =
   #| async (db, challengeId, userId, now) => {
   #|   try {
@@ -180,7 +180,7 @@ pub async fn claim_pending_authorization(
   db : @cloudflare.D1Database,
   challenge_id : String,
   user_id : String,
-  now : Int,
+  now : Int32,
 ) -> AuthorizationRequest? {
   let raw = claim_pending_authorization_js(
     db.as_any(),

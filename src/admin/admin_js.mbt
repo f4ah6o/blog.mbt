@@ -24,8 +24,8 @@ extern "js" fn request_header(req : @http.Request, name : String) -> String? =
 ///|
 extern "js" fn db_list_posts(
   db : @core.Any,
-  limit : Int,
-  offset : Int,
+  limit : Int32,
+  offset : Int32,
 ) -> @core.Promise[Array[@core.Any]] =
   #| async (db, limit, offset) => {
   #|   const result = await db
@@ -36,7 +36,7 @@ extern "js" fn db_list_posts(
   #| }
 
 ///|
-extern "js" fn db_count_posts(db : @core.Any) -> @core.Promise[Int] =
+extern "js" fn db_count_posts(db : @core.Any) -> @core.Promise[Int32] =
   #| async (db) => {
   #|   const result = await db.prepare("SELECT COUNT(*) as count FROM posts").first("count");
   #|   return result || 0;
@@ -45,7 +45,7 @@ extern "js" fn db_count_posts(db : @core.Any) -> @core.Promise[Int] =
 ///|
 extern "js" fn db_get_post_by_id(
   db : @core.Any,
-  id : Int,
+  id : Int32,
 ) -> @core.Promise[@core.Any] =
   #| async (db, id) => {
   #|   return await db.prepare("SELECT id, title, slug, excerpt, content, slide_flag, status, published_at, updated_at FROM posts WHERE id = ?").bind(id).first();
@@ -58,11 +58,11 @@ extern "js" fn db_insert_post(
   slug : String,
   excerpt : String,
   content : String,
-  slide_flag : Int,
+  slide_flag : Int32,
   status : String,
   published_at : @core.Any,
   updated_at : String,
-) -> @core.Promise[Int] =
+) -> @core.Promise[Int32] =
   #| async (db, title, slug, excerpt, content, slideFlag, status, published_at, updated_at) => {
   #|   const result = await db
   #|     .prepare("INSERT INTO posts (title, slug, excerpt, content, slide_flag, status, published_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
@@ -74,12 +74,12 @@ extern "js" fn db_insert_post(
 ///|
 extern "js" fn db_update_post(
   db : @core.Any,
-  id : Int,
+  id : Int32,
   title : String,
   slug : String,
   excerpt : String,
   content : String,
-  slide_flag : Int,
+  slide_flag : Int32,
   updated_at : String,
 ) -> @core.Promise[Unit] =
   #| async (db, id, title, slug, excerpt, content, slideFlag, updated_at) => {
@@ -90,7 +90,10 @@ extern "js" fn db_update_post(
   #| }
 
 ///|
-extern "js" fn db_delete_post(db : @core.Any, id : Int) -> @core.Promise[Unit] =
+extern "js" fn db_delete_post(
+  db : @core.Any,
+  id : Int32,
+) -> @core.Promise[Unit] =
   #| async (db, id) => {
   #|   await db.prepare("DELETE FROM posts WHERE id = ?").bind(id).run();
   #| }
@@ -98,7 +101,7 @@ extern "js" fn db_delete_post(db : @core.Any, id : Int) -> @core.Promise[Unit] =
 ///|
 extern "js" fn db_set_status(
   db : @core.Any,
-  id : Int,
+  id : Int32,
   status : String,
   published_at : @core.Any,
   updated_at : String,
@@ -191,7 +194,7 @@ extern "js" fn generate_uuid() -> String =
 
 ///|
 /// Get current Unix timestamp in seconds
-extern "js" fn now_unix_seconds() -> Int =
+extern "js" fn now_unix_seconds() -> Int32 =
   #| () => Math.floor(Date.now() / 1000)
 
 // =============================================================================

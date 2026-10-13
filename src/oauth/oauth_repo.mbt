@@ -15,8 +15,8 @@ pub struct AuthorizationCodeRecord {
   scope : String
   code_challenge : String
   code_challenge_method : String
-  created_at : Int
-  expires_at : Int
+  created_at : Int32
+  expires_at : Int32
 }
 
 ///|
@@ -28,8 +28,8 @@ pub fn authorization_code_record(
   scope : String,
   code_challenge : String,
   code_challenge_method : String,
-  created_at : Int,
-  expires_at : Int,
+  created_at : Int32,
+  expires_at : Int32,
 ) -> AuthorizationCodeRecord? {
   if !validate_sha256_hex(code_hash) ||
     client_id.is_empty() ||
@@ -60,8 +60,8 @@ pub struct AccessTokenRecord {
   client_id : String
   resource : String
   scope : String
-  created_at : Int
-  expires_at : Int
+  created_at : Int32
+  expires_at : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -80,7 +80,7 @@ pub fn AccessTokenRecord::scope(self : AccessTokenRecord) -> String {
 }
 
 ///|
-pub fn AccessTokenRecord::expires_at(self : AccessTokenRecord) -> Int {
+pub fn AccessTokenRecord::expires_at(self : AccessTokenRecord) -> Int32 {
   self.expires_at
 }
 
@@ -90,8 +90,8 @@ pub fn access_token_record(
   client_id : String,
   resource : String,
   scope : String,
-  created_at : Int,
-  expires_at : Int,
+  created_at : Int32,
+  expires_at : Int32,
 ) -> AccessTokenRecord? {
   if !validate_sha256_hex(token_hash) ||
     client_id.is_empty() ||
@@ -117,8 +117,8 @@ pub struct RefreshTokenRecord {
   client_id : String
   resource : String
   scope : String
-  created_at : Int
-  expires_at : Int
+  created_at : Int32
+  expires_at : Int32
 }
 
 ///|
@@ -133,8 +133,8 @@ pub fn refresh_token_record(
   client_id : String,
   resource : String,
   scope : String,
-  created_at : Int,
-  expires_at : Int,
+  created_at : Int32,
+  expires_at : Int32,
 ) -> RefreshTokenRecord? {
   if !validate_sha256_hex(token_hash) ||
     !validate_sha256_hex(family_hash) ||
@@ -173,12 +173,12 @@ struct AccessTokenRow {
   client_id : String
   resource : String
   scope : String
-  created_at : Int
-  expires_at : Int
+  created_at : Int32
+  expires_at : Int32
 } derive(FromJson)
 
 ///|
-fn changed_rows(result : @cloudflare.D1Result) -> Int {
+fn changed_rows(result : @cloudflare.D1Result) -> Int32 {
   match result.meta() {
     Some(meta) => meta.changes().unwrap_or(0)
     None => 0
@@ -195,8 +195,8 @@ extern "js" fn insert_authorization_code_js(
   scope : String,
   code_challenge : String,
   code_challenge_method : String,
-  created_at : Int,
-  expires_at : Int,
+  created_at : Int32,
+  expires_at : Int32,
 ) -> @core.Promise[Bool] =
   #| async (db, codeHash, clientId, redirectUri, resource, scope, codeChallenge, codeChallengeMethod, createdAt, expiresAt) => {
   #|   try {
@@ -220,7 +220,7 @@ extern "js" fn authorization_code_scope_js(
   client_id : String,
   redirect_uri : String,
   resource : String,
-  now : Int,
+  now : Int32,
 ) -> @core.Promise[String?] =
   #| async (db, codeHash, clientId, redirectUri, resource, now) => {
   #|   try {
@@ -245,7 +245,7 @@ async fn authorization_code_scope_row(
   client_id : String,
   redirect_uri : String,
   resource : String,
-  now : Int,
+  now : Int32,
 ) -> (String, String)? {
   let raw = authorization_code_scope_js(
     db, code_hash, client_id, redirect_uri, resource, now,
@@ -298,7 +298,7 @@ pub async fn redeem_authorization_code(
   redirect_uri : String,
   resource : String,
   code_verifier : String,
-  now : Int,
+  now : Int32,
 ) -> RedeemAuthorizationCodeResult raise @cloudflare.D1Error {
   if !validate_pkce_verifier(code_verifier) {
     return AuthorizationCodeInvalid
@@ -356,7 +356,7 @@ pub async fn authorization_code_scope(
   redirect_uri : String,
   resource : String,
   code_verifier : String,
-  now : Int,
+  now : Int32,
 ) -> String? {
   if !validate_pkce_verifier(code_verifier) {
     return None
@@ -396,22 +396,22 @@ extern "js" fn redeem_authorization_code_with_tokens_js(
   resource : String,
   scope : String,
   challenge : String,
-  now : Int,
+  now : Int32,
   access_token_hash : String,
   access_client_id : String,
   access_resource : String,
   access_scope : String,
-  access_created_at : Int,
-  access_expires_at : Int,
+  access_created_at : Int32,
+  access_expires_at : Int32,
   has_refresh : Bool,
   refresh_token_hash : String,
   refresh_family_hash : String,
   refresh_client_id : String,
   refresh_resource : String,
   refresh_scope : String,
-  refresh_created_at : Int,
-  refresh_expires_at : Int,
-) -> @core.Promise[Int] =
+  refresh_created_at : Int32,
+  refresh_expires_at : Int32,
+) -> @core.Promise[Int32] =
   #| async (db, codeHash, clientId, redirectUri, resource, scope, challenge, now, accessTokenHash, accessClientId, accessResource, accessScope, accessCreatedAt, accessExpiresAt, hasRefresh, refreshTokenHash, refreshFamilyHash, refreshClientId, refreshResource, refreshScope, refreshCreatedAt, refreshExpiresAt) => {
   #|   try {
   #|     const claim = db
@@ -448,7 +448,7 @@ pub async fn redeem_authorization_code_with_tokens(
   redirect_uri : String,
   resource : String,
   code_verifier : String,
-  now : Int,
+  now : Int32,
   access : AccessTokenRecord,
   refresh : RefreshTokenRecord?,
 ) -> RedeemAuthorizationCodeResult {
@@ -570,7 +570,7 @@ extern "js" fn lookup_access_token_js(
   db : @core.Any,
   token_hash : String,
   resource : String,
-  now : Int,
+  now : Int32,
 ) -> @core.Promise[String?] =
   #| async (db, tokenHash, resource, now) => {
   #|   try {
@@ -597,7 +597,7 @@ async fn lookup_access_token_row(
   db : @core.Any,
   token_hash : String,
   resource : String,
-  now : Int,
+  now : Int32,
 ) -> AccessTokenRecord? {
   let raw = lookup_access_token_js(db, token_hash, resource, now).wait() catch {
     _ => None
@@ -627,7 +627,7 @@ pub async fn lookup_access_token(
   token_hash : String,
   resource : String,
   required_scope : String,
-  now : Int,
+  now : Int32,
 ) -> AccessTokenRecord? {
   match lookup_access_token_row(db.as_any(), token_hash, resource, now) {
     None => None
@@ -648,7 +648,7 @@ pub async fn lookup_access_token_for_resource(
   db : @cloudflare.D1Database,
   token_hash : String,
   resource : String,
-  now : Int,
+  now : Int32,
 ) -> AccessTokenRecord? {
   if !validate_sha256_hex(token_hash) || resource.is_empty() {
     return None
@@ -662,7 +662,7 @@ pub async fn revoke_access_token(
   token_hash : String,
   client_id : String,
   resource : String,
-  now : Int,
+  now : Int32,
 ) -> Unit raise @cloudflare.D1Error {
   db
   .prepare(
@@ -710,7 +710,7 @@ extern "js" fn lookup_refresh_token_js(
   token_hash : String,
   client_id : String,
   resource : String,
-  now : Int,
+  now : Int32,
 ) -> @core.Promise[String?] =
   #| async (db, tokenHash, clientId, resource, now) => {
   #|   try {
@@ -740,8 +740,8 @@ struct RefreshTokenRow {
   client_id : String
   resource : String
   scope : String
-  created_at : Int
-  expires_at : Int
+  created_at : Int32
+  expires_at : Int32
 } derive(FromJson)
 
 ///|
@@ -750,7 +750,7 @@ pub async fn lookup_refresh_token(
   token_hash : String,
   client_id : String,
   resource : String,
-  now : Int,
+  now : Int32,
 ) -> RefreshTokenRecord? raise OAuthStorageError {
   let raw = lookup_refresh_token_js(
     db.as_any(),
@@ -793,7 +793,7 @@ extern "js" fn refresh_token_consumed_js(
   token_hash : String,
   client_id : String,
   resource : String,
-) -> @core.Promise[Int] =
+) -> @core.Promise[Int32] =
   #| async (db, tokenHash, clientId, resource) => {
   #|   try {
   #|     const row = await db
@@ -840,9 +840,9 @@ pub async fn rotate_refresh_token(
   client_id : String,
   resource : String,
   replacement_token_hash : String,
-  replacement_created_at : Int,
-  replacement_expires_at : Int,
-  now : Int,
+  replacement_created_at : Int32,
+  replacement_expires_at : Int32,
+  now : Int32,
 ) -> RefreshRotationDecision raise @cloudflare.D1Error {
   let update = db
     .prepare(
@@ -903,13 +903,13 @@ extern "js" fn rotate_refresh_token_with_access_js(
   client_id : String,
   resource : String,
   replacement_token_hash : String,
-  replacement_created_at : Int,
-  replacement_expires_at : Int,
-  now : Int,
+  replacement_created_at : Int32,
+  replacement_expires_at : Int32,
+  now : Int32,
   access_token_hash : String,
-  access_created_at : Int,
-  access_expires_at : Int,
-) -> @core.Promise[Int] =
+  access_created_at : Int32,
+  access_expires_at : Int32,
+) -> @core.Promise[Int32] =
   #| async (db, oldTokenHash, clientId, resource, replacementTokenHash, replacementCreatedAt, replacementExpiresAt, now, accessTokenHash, accessCreatedAt, accessExpiresAt) => {
   #|   try {
   #|     const update = db
@@ -945,9 +945,9 @@ pub async fn rotate_refresh_token_with_access(
   client_id : String,
   resource : String,
   replacement_token_hash : String,
-  replacement_created_at : Int,
-  replacement_expires_at : Int,
-  now : Int,
+  replacement_created_at : Int32,
+  replacement_expires_at : Int32,
+  now : Int32,
   access : AccessTokenRecord,
 ) -> RefreshRotationDecision raise OAuthStorageError {
   let result = rotate_refresh_token_with_access_js(
@@ -978,7 +978,7 @@ pub async fn rotate_refresh_token_with_access(
 pub async fn revoke_refresh_family(
   db : @cloudflare.D1Database,
   family_hash : String,
-  now : Int,
+  now : Int32,
 ) -> Unit raise @cloudflare.D1Error {
   db
   .prepare(
@@ -997,7 +997,7 @@ extern "js" fn revoke_refresh_family_for_token_js(
   token_hash : String,
   client_id : String,
   resource : String,
-  now : Int,
+  now : Int32,
 ) -> @core.Promise[Bool] =
   #| async (db, tokenHash, clientId, resource, now) => {
   #|   try {
@@ -1019,7 +1019,7 @@ pub async fn revoke_refresh_family_for_token(
   token_hash : String,
   client_id : String,
   resource : String,
-  now : Int,
+  now : Int32,
 ) -> Unit raise OAuthStorageError {
   let ok = revoke_refresh_family_for_token_js(
     db.as_any(),
@@ -1045,7 +1045,7 @@ pub struct OAuthClientRecord {
   redirect_uris : Array[String]
   client_secret_hash : String?
   scope : String
-  created_at : Int
+  created_at : Int32
 }
 
 ///|
@@ -1075,7 +1075,7 @@ extern "js" fn insert_oauth_client_js(
   has_secret : Bool,
   client_secret_hash : String,
   scope : String,
-  created_at : Int,
+  created_at : Int32,
 ) -> @core.Promise[Bool] =
   #| async (db, clientId, clientName, redirectUrisJson, hasSecret, clientSecretHash, scope, createdAt) => {
   #|   try {

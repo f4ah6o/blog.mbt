@@ -1,5 +1,5 @@
 ///|
-const MCP_MAX_BODY_BYTES : Int = 1048576
+const MCP_MAX_BODY_BYTES : Int32 = 1048576
 
 ///|
 const MCP_SERVER_NAME : String = "f4ah6o/blog.mbt"
@@ -8,7 +8,9 @@ const MCP_SERVER_NAME : String = "f4ah6o/blog.mbt"
 const MCP_SERVER_VERSION : String = "0.1.0"
 
 ///|
-pub fn mcp_auth_status(decision : @oauth.ProtectedResourceAuthorization) -> Int {
+pub fn mcp_auth_status(
+  decision : @oauth.ProtectedResourceAuthorization,
+) -> Int32 {
   match decision {
     @oauth.ProtectedResourceAuthorization::Authorized(_) => 200
     @oauth.ProtectedResourceAuthorization::MissingToken => 401
@@ -37,7 +39,7 @@ pub fn mcp_http_preflight_status(
   http_method : String,
   content_type : String,
   accept : String,
-) -> Int {
+) -> Int32 {
   if http_method != "POST" {
     405
   } else if content_type != "application/json" {
@@ -214,7 +216,7 @@ fn validate_mcp_post_input(
 ///|
 /// Re-read a post after a mutation so the tool result always reflects the
 /// persisted row.
-async fn mcp_post_result(db : @core.Any, id : Int, rpc_id : Json) -> String {
+async fn mcp_post_result(db : @core.Any, id : Int32, rpc_id : Json) -> String {
   let post_opt = @admin.get_post_by_id(db, id) catch {
     _ => return @mcp.tools_call_error(rpc_id, "Failed to load post.")
   }
@@ -341,17 +343,17 @@ extern "js" fn mcp_content_type(req : @cloudflare.CloudflareRequest) -> String =
   #| (request) => (request.headers.get("content-type") || "").split(";", 1)[0].trim().toLowerCase()
 
 ///|
-extern "js" fn mcp_utf8_length(body : String) -> Int =
+extern "js" fn mcp_utf8_length(body : String) -> Int32 =
   #| (body) => new TextEncoder().encode(body).byteLength
 
 ///|
-extern "js" fn mcp_now() -> Int =
+extern "js" fn mcp_now() -> Int32 =
   #| () => Math.floor(Date.now() / 1000)
 
 ///|
 extern "js" fn mcp_json_response_js(
   body : String,
-  status : Int,
+  status : Int32,
 ) -> @http.Response =
   #| (body, status) => new Response(body, {
   #|   status,
@@ -360,7 +362,7 @@ extern "js" fn mcp_json_response_js(
 
 ///|
 extern "js" fn mcp_empty_response_js(
-  status : Int,
+  status : Int32,
   challenge : String,
   allow_post : Bool,
 ) -> @http.Response =
