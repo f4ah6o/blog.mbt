@@ -8,7 +8,7 @@
 
 ///|
 /// Clock skew tolerance in seconds (±60s)
-let clock_skew_tolerance : Int = 60
+let clock_skew_tolerance : Int32 = 60
 
 ///|
 /// Cookie name for session
@@ -24,9 +24,9 @@ struct JwtPayload {
   /// Subject (user ID)
   sub : String
   /// Issued at (Unix timestamp)
-  iat : Int
+  iat : Int32
   /// Expiration (Unix timestamp)
-  exp : Int
+  exp : Int32
   /// JWT ID (unique session identifier)
   jti : String
 } derive(Debug, ToJson, FromJson)
@@ -42,7 +42,7 @@ struct JwtPayload {
 /// - Secure: HTTPS only (required for WebAuthn)
 /// - SameSite=Strict: CSRF protection
 /// - Path=/admin: Only sent for admin routes
-fn build_session_cookie(jwt : String, max_age : Int, secure : Bool) -> String {
+fn build_session_cookie(jwt : String, max_age : Int32, secure : Bool) -> String {
   let secure_flag = if secure { "Secure; " } else { "" }
   "session=\{jwt}; Max-Age=\{max_age}; Path=/admin; HttpOnly; \{secure_flag}SameSite=Strict"
 }
@@ -63,7 +63,7 @@ fn build_logout_cookie(secure : Bool) -> String {
 async fn create_session_token(
   user_id : String,
   secret : String,
-  expires_in : Int,
+  expires_in : Int32,
 ) -> String {
   let now = now_unix_seconds()
   let jti = generate_uuid()
@@ -167,7 +167,7 @@ fn redirect_with_logout_cookie(
 
 ///|
 /// Create a JSON response
-fn json_response(body : String, status : Int) -> @http.Response {
+fn json_response(body : String, status : Int32) -> @http.Response {
   let headers = @core.new_object()
   headers["Content-Type"] = @core.any("application/json")
   @http.Response::new(body~, status~, headers~)
@@ -177,9 +177,9 @@ fn json_response(body : String, status : Int) -> @http.Response {
 /// Create a JSON response with session cookie
 fn json_response_with_session_cookie(
   body : String,
-  status : Int,
+  status : Int32,
   jwt : String,
-  max_age : Int,
+  max_age : Int32,
   secure : Bool,
 ) -> @http.Response {
   let cookie = build_session_cookie(jwt, max_age, secure)

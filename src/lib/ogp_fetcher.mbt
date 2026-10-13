@@ -145,7 +145,7 @@ fn extract_title_tag(html : String) -> String? {
 }
 
 ///|
-fn find_meta_start(html : String, pos : Int) -> Int {
+fn find_meta_start(html : String, pos : Int32) -> Int32 {
   // Search backwards for '<'
   let mut i = pos
   while i >= 0 {
@@ -159,7 +159,7 @@ fn find_meta_start(html : String, pos : Int) -> Int {
 }
 
 ///|
-fn find_tag_end(html : String, pos : Int) -> Int {
+fn find_tag_end(html : String, pos : Int32) -> Int32 {
   // Search forwards for '>'
   let len = html.length()
   let mut i = pos
@@ -174,7 +174,7 @@ fn find_tag_end(html : String, pos : Int) -> Int {
 }
 
 ///|
-fn char_at(s : String, index : Int) -> Char {
+fn char_at(s : String, index : Int32) -> Char {
   let view = s[index:index + 1]
   for ch in view {
     return ch

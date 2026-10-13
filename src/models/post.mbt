@@ -1,6 +1,6 @@
 ///|
 pub struct BlogPost {
-  id : Int
+  id : Int32
   title : String
   slug : String
   excerpt : String
@@ -12,7 +12,7 @@ pub struct BlogPost {
 
 ///|
 pub fn BlogPost::new(
-  id : Int,
+  id : Int32,
   title : String,
   slug : String,
   excerpt : String,

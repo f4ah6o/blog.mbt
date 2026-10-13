@@ -1,27 +1,27 @@
 ///|
 /// Standard JSON-RPC 2.0 error codes. The MCP revision reuses JSON-RPC error
 /// objects, so these stay plain `Int` constants.
-pub const JSON_RPC_PARSE_ERROR : Int = -32700
+pub const JSON_RPC_PARSE_ERROR : Int32 = -32700
 
 ///|
-pub const JSON_RPC_INVALID_REQUEST : Int = -32600
+pub const JSON_RPC_INVALID_REQUEST : Int32 = -32600
 
 ///|
-pub const JSON_RPC_METHOD_NOT_FOUND : Int = -32601
+pub const JSON_RPC_METHOD_NOT_FOUND : Int32 = -32601
 
 ///|
-pub const JSON_RPC_INVALID_PARAMS : Int = -32602
+pub const JSON_RPC_INVALID_PARAMS : Int32 = -32602
 
 ///|
-pub const JSON_RPC_INTERNAL_ERROR : Int = -32603
+pub const JSON_RPC_INTERNAL_ERROR : Int32 = -32603
 
 ///|
 /// MCP 2026-07-28 `HeaderMismatch` (SEP-2243, reassigned to -32020).
-pub const MCP_HEADER_MISMATCH : Int = -32020
+pub const MCP_HEADER_MISMATCH : Int32 = -32020
 
 ///|
 /// MCP 2026-07-28 `UnsupportedProtocolVersionError`.
-pub const MCP_UNSUPPORTED_PROTOCOL_VERSION : Int = -32022
+pub const MCP_UNSUPPORTED_PROTOCOL_VERSION : Int32 = -32022
 
 ///|
 pub const JSON_RPC_VERSION : String = "2.0"
@@ -36,19 +36,19 @@ pub const MCP_PROTOCOL_VERSION : String = "2026-07-28"
 /// echoed verbatim. This type deliberately does not derive `Eq`/`Debug`
 /// because the builtin `Json` type implements neither.
 pub struct JsonRpcError {
-  priv code : Int
+  priv code : Int32
   priv message : String
   priv data : Json?
 }
 
 ///|
-pub fn JsonRpcError::new(code : Int, message : String) -> JsonRpcError {
+pub fn JsonRpcError::new(code : Int32, message : String) -> JsonRpcError {
   { code, message, data: None, }
 }
 
 ///|
 pub fn JsonRpcError::with_data(
-  code : Int,
+  code : Int32,
   message : String,
   data : Json,
 ) -> JsonRpcError {
@@ -56,7 +56,7 @@ pub fn JsonRpcError::with_data(
 }
 
 ///|
-pub fn JsonRpcError::code(self : JsonRpcError) -> Int {
+pub fn JsonRpcError::code(self : JsonRpcError) -> Int32 {
   self.code
 }
 

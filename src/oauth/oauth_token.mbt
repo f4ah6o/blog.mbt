@@ -1,10 +1,10 @@
 ///|
 /// Conservative OAuth token lifetimes. Secrets are generated only after the
 /// request has passed syntax validation and are persisted as hashes.
-pub const ACCESS_TOKEN_TTL_SECONDS : Int = 3600
+pub const ACCESS_TOKEN_TTL_SECONDS : Int32 = 3600
 
 ///|
-pub const REFRESH_TOKEN_TTL_SECONDS : Int = 30 * 24 * 60 * 60
+pub const REFRESH_TOKEN_TTL_SECONDS : Int32 = 30 * 24 * 60 * 60
 
 ///|
 struct FormPair {

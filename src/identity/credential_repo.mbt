@@ -16,7 +16,7 @@ let challenge_key_prefix : String = "challenge:"
 
 ///|
 /// Challenge TTL in seconds (5 minutes)
-let challenge_ttl_seconds : Int = 300
+let challenge_ttl_seconds : Int32 = 300
 
 // =============================================================================
 // Credential Types
@@ -30,7 +30,7 @@ pub struct StoredCredential {
   /// Public key (base64url encoded)
   public_key : String
   /// Signature counter
-  counter : UInt
+  counter : UInt32
   /// Authenticator transports
   transports : Array[String]
   /// Human-readable name for the credential
@@ -47,7 +47,7 @@ pub struct StoredChallenge {
   /// Type of challenge: "registration" or "authentication"
   challenge_type : String
   /// Expiration timestamp (Unix seconds)
-  expires_at : Int
+  expires_at : Int32
 } derive(Debug, ToJson, FromJson)
 
 // =============================================================================
@@ -127,7 +127,7 @@ pub async fn update_credential_counter(
   kv : @core.Any,
   user_id : String,
   credential_id : String,
-  new_counter : UInt,
+  new_counter : UInt32,
 ) -> Unit {
   let creds : Array[StoredCredential] = get_credentials(kv, user_id) // async fn
   let updated : Array[StoredCredential] = []

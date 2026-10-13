@@ -38,7 +38,7 @@ pub fn protected_resource_record_decision(
   token : AccessTokenRecord?,
   expected_resource : String,
   required_scope : String,
-  now : Int,
+  now : Int32,
 ) -> ProtectedResourceAuthorization {
   if !validate_protected_resource_scope(required_scope) ||
     expected_resource.is_empty() {
@@ -67,7 +67,7 @@ pub async fn authorize_protected_resource(
   site_url : String,
   authorization_header : String?,
   required_scope : String,
-  now : Int,
+  now : Int32,
 ) -> ProtectedResourceAuthorization {
   if !validate_protected_resource_scope(required_scope) {
     return InvalidConfiguration

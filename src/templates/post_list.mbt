@@ -29,7 +29,11 @@ fn format_date(iso_date : String) -> String {
 }
 
 ///|
-fn pagination_buttons(page : Int, total_pages : Int, limit : Int) -> @tmpx.Node {
+fn pagination_buttons(
+  page : Int32,
+  total_pages : Int32,
+  limit : Int32,
+) -> @tmpx.Node {
   let prev_disabled = page <= 1
   let next_disabled = page >= total_pages
   let prev_attrs : Array[@tmpx.Attr] = if prev_disabled {
@@ -78,9 +82,9 @@ fn pagination_buttons(page : Int, total_pages : Int, limit : Int) -> @tmpx.Node 
 ///|
 pub fn post_list_content(
   posts : Array[@models.BlogPost],
-  page : Int,
-  total_pages : Int,
-  limit : Int,
+  page : Int32,
+  total_pages : Int32,
+  limit : Int32,
 ) -> @tmpx.Node {
   if posts.is_empty() {
     return @tmpx.div([@tmpx.class_("empty-list")], [
@@ -98,9 +102,9 @@ pub fn post_list_content(
 ///|
 pub fn render_post_list(
   posts : Array[@models.BlogPost],
-  page : Int,
-  total_pages : Int,
-  limit : Int,
+  page : Int32,
+  total_pages : Int32,
+  limit : Int32,
 ) -> String {
   @tmpx.render(post_list_content(posts, page, total_pages, limit))
 }

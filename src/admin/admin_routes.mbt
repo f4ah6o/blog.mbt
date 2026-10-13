@@ -1,11 +1,11 @@
 ///|
-fn parse_int(value : String) -> Int? {
+fn parse_int(value : String) -> Int32? {
   let parsed = @string.parse_int(value) catch { _ => return None }
   Some(parsed)
 }
 
 ///|
-fn parse_id(segment : String) -> Int? {
+fn parse_id(segment : String) -> Int32? {
   match parse_int(segment) {
     Some(v) if v > 0 => Some(v)
     _ => None

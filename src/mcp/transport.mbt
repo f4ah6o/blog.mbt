@@ -3,12 +3,12 @@
 /// object construction stays outside this package; status/body semantics stay
 /// here in MoonBit.
 pub struct McpHttpResult {
-  priv status : Int
+  priv status : Int32
   priv body : String
 }
 
 ///|
-pub fn McpHttpResult::status(self : McpHttpResult) -> Int {
+pub fn McpHttpResult::status(self : McpHttpResult) -> Int32 {
   self.status
 }
 
@@ -18,7 +18,7 @@ pub fn McpHttpResult::body(self : McpHttpResult) -> String {
 }
 
 ///|
-fn mcp_http_result(status : Int, body : String) -> McpHttpResult {
+fn mcp_http_result(status : Int32, body : String) -> McpHttpResult {
   { status, body, }
 }
 

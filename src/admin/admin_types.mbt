@@ -31,7 +31,7 @@ pub fn post_status_label(status : PostStatus) -> String {
 
 ///|
 pub struct AdminPost {
-  id : Int
+  id : Int32
   title : String
   slug : String
   excerpt : String
@@ -44,7 +44,7 @@ pub struct AdminPost {
 
 ///|
 pub fn AdminPost::new(
-  id : Int,
+  id : Int32,
   title : String,
   slug : String,
   excerpt : String,

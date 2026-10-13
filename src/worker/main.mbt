@@ -1,11 +1,11 @@
 ///|
-const DEFAULT_LIMIT : Int = 10
+const DEFAULT_LIMIT : Int32 = 10
 
 ///|
-const MAX_LIMIT : Int = 50
+const MAX_LIMIT : Int32 = 50
 
 ///|
-fn parse_page(value : String?) -> Int {
+fn parse_page(value : String?) -> Int32 {
   match value {
     Some(v) =>
       match @global.parse_int(v) {
@@ -17,7 +17,7 @@ fn parse_page(value : String?) -> Int {
 }
 
 ///|
-fn parse_limit(value : String?) -> Int {
+fn parse_limit(value : String?) -> Int32 {
   match value {
     Some(v) =>
       match @global.parse_int(v) {
@@ -36,7 +36,7 @@ fn parse_limit(value : String?) -> Int {
 }
 
 ///|
-fn ceil_div(a : Int, b : Int) -> Int {
+fn ceil_div(a : Int32, b : Int32) -> Int32 {
   (a + b - 1) / b
 }
 
@@ -66,22 +66,28 @@ fn row_to_post(row : @core.Any) -> @models.BlogPost {
 }
 
 ///|
-extern "js" fn html_response_js(body : String, status : Int) -> @http.Response =
+extern "js" fn html_response_js(
+  body : String,
+  status : Int32,
+) -> @http.Response =
   #| (body, status) => new Response(body, { status, headers: { "Content-Type": "text/html; charset=utf-8" } })
 
 ///|
 extern "js" fn markdown_response_js(
   body : String,
-  status : Int,
+  status : Int32,
 ) -> @http.Response =
   #| (body, status) => new Response(body, { status, headers: { "Content-Type": "text/markdown; charset=utf-8" } })
 
 ///|
-extern "js" fn text_response_js(body : String, status : Int) -> @http.Response =
+extern "js" fn text_response_js(
+  body : String,
+  status : Int32,
+) -> @http.Response =
   #| (body, status) => new Response(body, { status, headers: { "Content-Type": "text/plain; charset=utf-8" } })
 
 ///|
-extern "js" fn rss_response_js(body : String, status : Int) -> @http.Response =
+extern "js" fn rss_response_js(body : String, status : Int32) -> @http.Response =
   #| (body, status) => new Response(body, { status, headers: { "Content-Type": "application/rss+xml; charset=utf-8" } })
 
 ///|
@@ -117,7 +123,7 @@ extern "js" fn get_search_param(url : @core.Any, name : String) -> String? =
 extern "js" fn db_count_posts(
   db : @core.Any,
   include_preview : Bool,
-) -> @core.Promise[Int] =
+) -> @core.Promise[Int32] =
   #| async (db, includePreview) => {
   #|   const visibility = includePreview
   #|     ? "status IN ('draft', 'published', 'archived')"
@@ -129,8 +135,8 @@ extern "js" fn db_count_posts(
 ///|
 extern "js" fn db_list_posts(
   db : @core.Any,
-  limit : Int,
-  offset : Int,
+  limit : Int32,
+  offset : Int32,
   include_preview : Bool,
 ) -> @core.Promise[@core.Any] =
   #| async (db, limit, offset, includePreview) => {
@@ -174,7 +180,7 @@ extern "js" fn fetch_url(url : String) -> @core.Promise[String] =
   #| }
 
 ///|
-extern "js" fn json_response(body : String, status : Int) -> @http.Response =
+extern "js" fn json_response(body : String, status : Int32) -> @http.Response =
   #| (body, status) => new Response(body, { status, headers: { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" } })
 
 ///|

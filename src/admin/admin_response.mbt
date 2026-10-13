@@ -1,5 +1,5 @@
 ///|
-fn html_response(body : String, status : Int) -> @http.Response {
+fn html_response(body : String, status : Int32) -> @http.Response {
   @http.Response::html(body, status)
 }
 

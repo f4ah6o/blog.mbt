@@ -4,11 +4,11 @@
 
 ///|
 /// The maximum redirect URIs one registration may declare.
-const MAX_REGISTERED_REDIRECT_URIS : Int = 10
+const MAX_REGISTERED_REDIRECT_URIS : Int32 = 10
 
 ///|
 /// The maximum accepted registration body length in characters.
-pub const MAX_REGISTRATION_BODY_LENGTH : Int = 65536
+pub const MAX_REGISTRATION_BODY_LENGTH : Int32 = 65536
 
 ///|
 /// Client metadata accepted by POST /oauth/register after validation.
@@ -120,7 +120,7 @@ pub fn ClientRegistration::record(
   self : ClientRegistration,
   client_id : String,
   client_secret_hash : String?,
-  created_at : Int,
+  created_at : Int32,
 ) -> OAuthClientRecord {
   let client_name = if self.client_name.is_empty() {
     client_id
@@ -145,7 +145,7 @@ pub fn ClientRegistration::response_json(
   self : ClientRegistration,
   client_id : String,
   client_secret : String?,
-  issued_at : Int,
+  issued_at : Int32,
 ) -> String {
   let fields : Map[String, Json] = Map::Map([])
   fields["client_id"] = client_id.to_json()
